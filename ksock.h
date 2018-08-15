@@ -10,6 +10,13 @@ extern "C" {
 
 typedef uint16_t k_port;
 
+enum ksock_mode
+{
+    KSOCK_UNKNOW = -1,
+    KSOCK_SERVER = 0,
+    KSOCK_CLIENT = 1,
+};
+
 enum ksock_err
 {
     KSOCK_SUC = 0,
@@ -44,9 +51,10 @@ struct ksock_init{
 struct ksock_node{
     int fd;
     short state;
+    short mode;
+    k_port port;
     struct ksock_init init;
 };
-
 
 #ifdef __cplusplus
 }

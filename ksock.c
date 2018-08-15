@@ -1,21 +1,46 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <string.h>
 #include "ksock.h"
 
+const int HD_SIZE = 79;
+struct ksock_node *_hd_array[HD_SIZE] = {NULL};
 
-int k_add(const int fd, const struct ksock_init i)
+int __k_add(const int fd, const struct ksock_init i)
 {
-
-}
-
-int k_remove(const int hd)
-{
+    struct ksock_node *p = malloc(sizeof(struct ksock_node));
+    p->init.af = i.af;
+    p->init.proto = i.proto;
+    p->fd = fd;
+    p->state = KSOCK_STATE_SLEEP;
+    p->mode = KSOCK_UNKNOW;
     
+    for(int i = 0; i < HD_SIZE && (NULL != _hd_array[i]); i++)
+    {
+        _hd_array[i] = p;
+        return i;
+    }
+    return KSOCK_ERR;
 }
 
+int __k_remove(const int hd)
+{
+    if (hd < 0 || hd >= HD_SIZE)
+        return KSOCK_ERR;
+    struct ksock_node *p = _hd_array[hd];
+    if (NULL != p)
+    {
+        free(p);
+        _hd_array[hd] = NULL;
+    }
+    else
+    {
+        return KSOCK_ERR;
+    }
+}
 
 int k_socket(const struct ksock_init i)
 {
@@ -26,7 +51,7 @@ int k_socket(const struct ksock_init i)
         perror("k_socket");
         return KSOCK_ERR;
     }
-
+    __k_add(sockfd, i);
 }
 
 /*
