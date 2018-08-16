@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
@@ -7,6 +8,8 @@
 #include "ksock.h"
 
 const int HD_SIZE = 79;
+const int LISTEN_QUEUE_MAX_NUM = 1000;
+
 struct ksock_node *_hd_array[HD_SIZE] = {NULL};
 
 int __k_add(const int fd, const struct ksock_init i)
@@ -33,8 +36,10 @@ int __k_remove(const int hd)
     struct ksock_node *p = _hd_array[hd];
     if (NULL != p)
     {
+        close(p->fd);
         free(p);
         _hd_array[hd] = NULL;
+        return KSOCK_SUC;
     }
     else
     {
@@ -54,47 +59,29 @@ int k_socket(const struct ksock_init i)
     __k_add(sockfd, i);
 }
 
-/*
-listen
-means create a socket fd
-kp:port
-p_type:proto type, see ksock_proto
-discr: other description about socket, use bit operating
-*/
-int k_listen(const k_port kp, const short p_type, const int b_discr)
+int k_listen(const int hd, const char *address, const uint16_t port, const short family)
 {
-    //第一步：先socket打开文件描述符
-    int sockfd = -1;
-    struct sockaddr_in server_addr = {0};
-    struct sockaddr_in client_addr = {0};
+    if (NULL == _hd_array[hd])
+        return KSOCK_ERR;
+
+    struct sockaddr_in addr_in = {0};
     int ret = -1;
 
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (-1 == sockfd)
-    {
-        perror("socket");
-        return -1;
-    }
-    printf("sockfd = %d\n", sockfd);
-
-    //第二步：bind绑定sockfd和当前电脑的ip地址和端口号
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(SERVER_PORT);
-    server_addr.sin_addr.s_addr = inet_addr(SERVER_ADDR);
-    ret = bind(sockfd, (const struct sockaddr*)&server_addr, sizeof(server_addr));
+    addr_in.sin_family = family;
+    addr_in.sin_port = htons(port);
+    addr_in.sin_addr.s_addr = inet_addr(address);
+    ret = bind(_hd_array[hd]->fd, (const struct sockaddr*)&addr_in, sizeof(addr_in));
     if (ret < 0)
     {
-        perror("bind");
-        return -1;
+        perror("k_listen of bind");
+        return KSOCK_ERR;
     }
-    printf("bind success\n");
 
-    //第三步：listen监听端口
-    ret = listen(sockfd, LISTEN_NUM);
+    ret = listen(_hd_array[hd]->fd, LISTEN_QUEUE_MAX_NUM);
     if (ret < 0)
     {
-        perror("listen");
-        return -1;
+        perror("k_listen");
+        return KSOCK_ERR;
     }
 
     return KSOCK_SUC;

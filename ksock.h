@@ -8,8 +8,6 @@
 extern "C" {
 #endif
 
-typedef uint16_t k_port;
-
 enum ksock_mode
 {
     KSOCK_UNKNOW = -1,
@@ -35,6 +33,9 @@ enum ksock_proto
     KSOCK_UDP = SOCK_DGRAM,
 };
 
+/**
+ * 一旦socket fd开启accept，就意味着状态为KSOCK_STATE_ACTIVE
+ * */
 enum ksock_state
 {
     KSOCK_STATE_ERR = 0,
@@ -52,9 +53,14 @@ struct ksock_node{
     int fd;
     short state;
     short mode;
-    k_port port;
+    uint16_t port;
     struct ksock_init init;
 };
+
+struct ksock_accept_node{
+    int fd;
+    uint16_t port;
+}
 
 #ifdef __cplusplus
 }
