@@ -3,6 +3,7 @@
 #define __KSOCK_H_
 
 #include <sys/socket.h>
+#include <pthread.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -49,18 +50,21 @@ struct ksock_init{
     short proto;
 };
 
+struct ksock_accept_node{
+    int fd;
+    uint16_t port;
+};
+
 struct ksock_node{
     int fd;
     short state;
     short mode;
     uint16_t port;
+    struct ksock_accept_node *accpet_head;
+    struct ksock_accept_node *accpet_tail;
+    pthread_t accept_thread;
     struct ksock_init init;
 };
-
-struct ksock_accept_node{
-    int fd;
-    uint16_t port;
-}
 
 #ifdef __cplusplus
 }

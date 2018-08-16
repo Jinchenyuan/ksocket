@@ -9,6 +9,7 @@
 
 const int HD_SIZE = 79;
 const int LISTEN_QUEUE_MAX_NUM = 1000;
+const int ACCEPT_QUEUE_MAX_NUM = 1000;
 
 struct ksock_node *_hd_array[HD_SIZE] = {NULL};
 
@@ -19,8 +20,11 @@ int __k_add(const int fd, const struct ksock_init i)
     p->init.proto = i.proto;
     p->fd = fd;
     p->state = KSOCK_STATE_SLEEP;
+    p->accpet_head = NULL;
+    p->accpet_tail = NULL;
+    p->accept_thread = -1;
     p->mode = KSOCK_UNKNOW;
-    
+
     for(int i = 0; i < HD_SIZE && (NULL != _hd_array[i]); i++)
     {
         _hd_array[i] = p;
@@ -45,6 +49,11 @@ int __k_remove(const int hd)
     {
         return KSOCK_ERR;
     }
+}
+
+void *accept_func(void *arg)
+{
+
 }
 
 int k_socket(const struct ksock_init i)
@@ -83,6 +92,13 @@ int k_listen(const int hd, const char *address, const uint16_t port, const short
         perror("k_listen");
         return KSOCK_ERR;
     }
-
+    _hd_array[hd]->mode = KSOCK_SERVER;
+    _hd_array[hd]->state = KSOCK_STATE_LISTEN;
     return KSOCK_SUC;
+}
+
+int k_accept(const int hd)
+{
+    if (NULL == _hd_array[hd])
+        return KSOCK_ERR;
 }
