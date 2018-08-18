@@ -22,7 +22,7 @@ int __k_add(const int fd, const struct ksock_init i)
     p->state = KSOCK_STATE_SLEEP;
     p->accpet_head = NULL;
     p->accpet_tail = NULL;
-    p->accept_thread = -1;
+    p->accept_thread = NULL;
     p->mode = KSOCK_UNKNOW;
 
     for(int i = 0; i < HD_SIZE && (NULL != _hd_array[i]); i++)
@@ -40,6 +40,10 @@ int __k_remove(const int hd)
     struct ksock_node *p = _hd_array[hd];
     if (NULL != p)
     {
+        if(NULL != p->accept_thread)
+        {
+            int i;
+        }
         close(p->fd);
         free(p);
         _hd_array[hd] = NULL;
@@ -51,7 +55,7 @@ int __k_remove(const int hd)
     }
 }
 
-void *accept_func(void *arg)
+void *accept_func(const int hd)
 {
 
 }
@@ -101,4 +105,13 @@ int k_accept(const int hd)
 {
     if (NULL == _hd_array[hd])
         return KSOCK_ERR;
+
+    if (NULL != _hd_array[hd]->accept_thread)
+    {
+        //后续要输出日志，表示正确的特殊性
+        return KSOCK_SUC;
+    }
+
+    pthread_create(&(_hd_array[hd]->accept_thread), NULL, accept_func, hd);
+    return KSOCK_SUC;
 }
