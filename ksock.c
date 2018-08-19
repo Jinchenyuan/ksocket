@@ -85,7 +85,11 @@ int __k_accept_push(struct ksock_accept_node *node)
     else
     {
         // TODO 把错误信息返回给连接，然后断开连接
-        
+        char send_buf[100];
+        strcpy(send_buf, "accept overflow.");
+        send(node->fd, send_buf, strlen(send_buf), 0);
+        close(node->fd);
+
         _hd_array[hd]->state = KSOCK_ACCEPT_OVERFLOW;
         return KSOCK_ERR;
     }
