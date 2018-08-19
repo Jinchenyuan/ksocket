@@ -43,6 +43,7 @@ enum ksock_state
     KSOCK_STATE_SLEEP,
     KSOCK_STATE_LISTEN,
     KSOCK_STATE_ACTIVE,
+    KSOCK_ACCEPT_OVERFLOW,
 };
 
 struct ksock_init{
@@ -52,7 +53,9 @@ struct ksock_init{
 
 struct ksock_accept_node{
     int fd;
-    uint16_t port;
+    int hd;
+    struct sockaddr_in addr_in;
+    struct ksock_accept_node *next;
 };
 
 struct ksock_node{
@@ -60,11 +63,14 @@ struct ksock_node{
     short state;
     short mode;
     uint16_t port;
-    struct ksock_accept_node *accpet_head;
-    struct ksock_accept_node *accpet_tail;
+    struct ksock_accept_node *accept_head;
+    struct ksock_accept_node *accept_tail;
+    int accept_count;
     pthread_t accept_thread;
     struct ksock_init init;
 };
+
+static char *_error_msg;
 
 #ifdef __cplusplus
 }
