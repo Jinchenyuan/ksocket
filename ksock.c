@@ -215,13 +215,11 @@ int k_accept_cancel(const int hd, int is_clear_accept)
     if (is_clear_accept)
     {
         struct ksock_accept_node *p = NULL;
-        __k_accept_pop(hd, p);
-        while(NULL != p)
+        while(__k_accept_pop(hd, p) == KSOCK_SUC)
         {
             //TODO 断开连接 p->fd
             close(p->fd);
             p = NULL;
-            __k_accept_pop(hd, p);
         }
     }
 }
