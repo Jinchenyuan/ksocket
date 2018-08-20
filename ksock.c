@@ -7,12 +7,11 @@
 #include <string.h>
 #include "ksock.h"
 
-const int HD_SIZE = 79;
+#define HD_SIZE 79
 const int LISTEN_QUEUE_MAX_NUM = 1000;
 const int ACCEPT_QUEUE_MAX_NUM = 100;
-
 struct ksock_node *_hd_array[HD_SIZE] = {NULL};
-_error_msg = "";
+
 void ksock_perror(const char *msg)
 {
     char c[50] = "";
@@ -30,7 +29,7 @@ int __k_add(const int fd, const struct ksock_init i)
     p->state = KSOCK_STATE_SLEEP;
     p->accept_head = NULL;
     p->accept_tail = NULL;
-    p->accept_thread = NULL;
+    p->accept_thread = -1;
     p->mode = KSOCK_UNKNOW;
 
     for(int i = 0; i < HD_SIZE && (NULL != _hd_array[i]); i++)
@@ -49,10 +48,10 @@ int __k_remove(const int hd)
     struct ksock_node *p = _hd_array[hd];
     if (NULL != p)
     {
-        if(NULL != p->accept_thread)
+        if(-1 != p->accept_thread)
         {
             pthread_cancel(p->accept_thread);
-            p->accept_thread = NULL;
+            p->accept_thread = -1;
         }
         close(p->fd);
         free(p);
@@ -72,7 +71,7 @@ int __k_accept_push(struct ksock_accept_node *node)
     {
         if (NULL == _hd_array[hd]->accept_tail)
         {
-            _hd_array[hd]->accept_head == _hd_array[hd]->accept_head == node;
+            _hd_array[hd]->accept_head = _hd_array[hd]->accept_head = node;
         }
         else
         {
@@ -123,11 +122,12 @@ int __k_accept_pop(const int hd, struct ksock_accept_node *node)
     return KSOCK_SUC;
 }
 
-void *accept_func(const int hd)
+void *accept_func(void *arg)
 {
+    int hd = *(int*)arg;
     if (NULL == _hd_array[hd])
     {
-        return;
+        return NULL;
     }
     while(1)
     {
@@ -192,13 +192,13 @@ int k_accept(const int hd)
         return KSOCK_ERR;
     }
     
-    if (NULL != _hd_array[hd]->accept_thread)
+    if (-1 != _hd_array[hd]->accept_thread)
     {
         _error_msg = "this socket hd had accept!";
         return KSOCK_ERR;
     }
 
-    pthread_create(&(_hd_array[hd]->accept_thread), NULL, accept_func, hd);
+    pthread_create(&(_hd_array[hd]->accept_thread), NULL, accept_func, ((void *)&hd));
     return KSOCK_SUC;
 }
 
@@ -209,13 +209,13 @@ int k_accept_cancel(const int hd, int is_clear_accept)
         _error_msg = "hd error!";
         return KSOCK_ERR;
     }
-    if (NULL == _hd_array[hd]->accept_thread)
+    if (-1 == _hd_array[hd]->accept_thread)
     {
         _error_msg = "accept_thread not exist!";
         return KSOCK_ERR;
     }
     pthread_cancel(_hd_array[hd]->accept_thread);
-    _hd_array[hd]->accept_thread = NULL;
+    _hd_array[hd]->accept_thread = -1;
     if (is_clear_accept)
     {
         struct ksock_accept_node *p = NULL;
@@ -226,4 +226,10 @@ int k_accept_cancel(const int hd, int is_clear_accept)
             p = NULL;
         }
     }
+}
+
+int main(int argc, char const *argv[])
+{
+    /* code */
+    return 0;
 }
