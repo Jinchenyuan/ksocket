@@ -104,7 +104,7 @@ static int k_accept(const int hd);
 /**
  * 取消accept
  * @param hd                socket标志
- * @param is_clear_accept   是否清除已经接收但没有处理的socket连接
+ * @param is_clear_accept   是否清除已经接收但没有处理的socket连接 1清除，非1不清除
  * @return                  成功时返回KSOCK_SUC；错误时则返回KSOCK_ERR，错误信息将被设置
 */
 static int k_accept_cancel(const int hd, int is_clear_accept);

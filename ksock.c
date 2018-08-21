@@ -53,6 +53,7 @@ int __k_remove(const int hd)
             pthread_cancel(p->accept_thread);
             p->accept_thread = -1;
         }
+        k_accept_cancel(hd, 1);
         close(p->fd);
         free(p);
         _hd_array[hd] = NULL;
@@ -96,9 +97,14 @@ int __k_accept_push(struct ksock_accept_node *node)
 
 int __k_accept_pop(const int hd, struct ksock_accept_node *node)
 {
-    if (NULL == _hd_array[hd])
+    if (hd < 0 || hd >= HD_SIZE)
     {
         _error_msg = "hd error!";
+        return KSOCK_ERR;
+    }
+    if (NULL == _hd_array[hd])
+    {
+        _error_msg = "hd not find!";
         return KSOCK_ERR;
     }
     if (NULL == _hd_array[hd]->accept_head)
@@ -157,8 +163,17 @@ int k_socket(const struct ksock_init i)
 
 int k_listen(const int hd, const char *address, const uint16_t port, const short family)
 {
-    if (NULL == _hd_array[hd])
+    if (hd < 0 || hd >= HD_SIZE)
+    {
+        _error_msg = "hd error!";
         return KSOCK_ERR;
+    }
+
+    if (NULL == _hd_array[hd])
+    {
+        _error_msg = "hd not find!";
+        return KSOCK_ERR;
+    }
 
     struct sockaddr_in addr_in = {0};
     int ret = -1;
@@ -186,9 +201,15 @@ int k_listen(const int hd, const char *address, const uint16_t port, const short
 
 int k_accept(const int hd)
 {
-    if (NULL == _hd_array[hd])
+    if (hd < 0 || hd >= HD_SIZE)
     {
         _error_msg = "hd error!";
+        return KSOCK_ERR;
+    }
+
+    if (NULL == _hd_array[hd])
+    {
+        _error_msg = "hd not find!";
         return KSOCK_ERR;
     }
     
@@ -204,9 +225,15 @@ int k_accept(const int hd)
 
 int k_accept_cancel(const int hd, int is_clear_accept)
 {
-    if (NULL == _hd_array[hd])
+    if (hd < 0 || hd >= HD_SIZE)
     {
         _error_msg = "hd error!";
+        return KSOCK_ERR;
+    }
+
+    if (NULL == _hd_array[hd])
+    {
+        _error_msg = "hd not find!";
         return KSOCK_ERR;
     }
     if (-1 == _hd_array[hd]->accept_thread)
@@ -225,6 +252,30 @@ int k_accept_cancel(const int hd, int is_clear_accept)
             close(p->fd);
             p = NULL;
         }
+    }
+}
+
+int k_get_accept_fd(const int hd)
+{
+    if (hd < 0 || hd >= HD_SIZE)
+    {
+        _error_msg = "hd error!";
+        return KSOCK_ERR;
+    }
+    
+    if (NULL == _hd_array[hd])
+    {
+        _error_msg = "hd not find!";
+        return KSOCK_ERR;
+    }
+    struct ksock_accept_node *node = NULL;
+    if (__k_accept_pop(hd, node) == KSOCK_SUC)
+    {
+        return node->fd;
+    }
+    else
+    {
+        return KSOCK_ERR;
     }
 }
 
