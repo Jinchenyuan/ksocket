@@ -71,6 +71,43 @@ struct ksock_node{
 };
 
 static char *_error_msg;
+/**
+ * 当错误信息被设置，错误信息可以被打印
+ * @param msg 错误信息标志
+*/
+static void ksock_perror(const char *msg);
+
+/**
+ * 创建socket fd
+ * @param i 用于初始化socket
+ * @return 当成功是返回hd，该hd用于操作socket的唯一标志符，错误时，返回KSOCK_ERR，错误信息将被设置
+*/
+static int k_socket(const struct ksock_init i);
+
+/**
+ * 启用listen
+ * @param hd socket 唯一标志
+ * @param address   绑定的ip地址
+ * @param port      绑定的端口号
+ * @param family    使用的ip族
+ * @return          成功时返回KSOCK_SUC，该socket的状态作相应的改改；错误时则返回KSOCK_ERR，错误信息将被设置
+*/
+static int k_listen(const int hd, const char *address, const uint16_t port, const short family);
+
+/**
+ * 启用accept，注意：调用该函数不阻塞
+ * @param hd    socket标志
+ * @return      成功时返回KSOCK_SUC；错误时则返回KSOCK_ERR，错误信息将被设置
+*/
+static int k_accept(const int hd);
+
+/**
+ * 取消accept
+ * @param hd                socket标志
+ * @param is_clear_accept   是否清除已经接收但没有处理的socket连接
+ * @return                  成功时返回KSOCK_SUC；错误时则返回KSOCK_ERR，错误信息将被设置
+*/
+static int k_accept_cancel(const int hd, int is_clear_accept);
 
 #ifdef __cplusplus
 }
