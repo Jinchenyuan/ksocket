@@ -12,7 +12,7 @@ const int LISTEN_QUEUE_MAX_NUM = 1000;
 const int ACCEPT_QUEUE_MAX_NUM = 100;
 struct ksock_node *_hd_array[HD_SIZE] = {NULL};
 
-void ksock_perror(const char *msg)
+void k_perror(const char *msg)
 {
     char c[50] = "";
     strcat(c, msg);
@@ -278,6 +278,17 @@ int k_get_accept_node(const int hd, struct ksock_accept_node *node)
         return KSOCK_ERR;
     }
 }
+
+int k_send(const struct ksock_accept_node *node, void *buf, size_t len, int flag)
+{
+    return send(node->fd, buf, len, flag); 
+}
+
+int k_recv(const struct ksock_accept_node *node, void *buf, size_t len, int flag)
+{
+    return recv(node->fd, buf, len, flag); 
+}
+
 
 int main(int argc, char const *argv[])
 {

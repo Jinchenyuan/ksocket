@@ -75,7 +75,7 @@ static char *_error_msg;
  * 当错误信息被设置，错误信息可以被打印
  * @param msg 错误信息标志
 */
-static void ksock_perror(const char *msg);
+static void k_perror(const char *msg);
 
 /**
  * 创建socket fd
@@ -116,6 +116,26 @@ static int k_accept_cancel(const int hd, int is_clear_accept);
  * @return          成功时返回KSOCK_SUC；错误时则返回KSOCK_ERR，错误信息将被设置           
 */
 int k_get_accept_node(const int hd, struct ksock_accept_node *node);
+
+/**
+ * send 与socket send一致，可参阅
+ * @param node      接收到的连接
+ * @param buf       发送的缓存
+ * @param len       发送的长度
+ * @param flag      socket send flag
+ * @return          实际发送的长度
+*/
+int k_send(const struct ksock_accept_node *node, void *buf, size_t len, int flag);
+
+/**
+ * recv 与socket recv一致，可参阅
+ * @param node      接收到的连接
+ * @param buf       recv的缓存
+ * @param len       recv的长度
+ * @param flag      socket recv flag
+ * @return          实际接收的长度
+*/
+int k_recv(const struct ksock_accept_node *node, void *buf, size_t len, int flag);
 
 #ifdef __cplusplus
 }
