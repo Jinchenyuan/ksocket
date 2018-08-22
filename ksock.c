@@ -255,7 +255,7 @@ int k_accept_cancel(const int hd, int is_clear_accept)
     }
 }
 
-int k_get_accept_fd(const int hd)
+int k_get_accept_node(const int hd, struct ksock_accept_node *node)
 {
     if (hd < 0 || hd >= HD_SIZE)
     {
@@ -268,10 +268,10 @@ int k_get_accept_fd(const int hd)
         _error_msg = "hd not find!";
         return KSOCK_ERR;
     }
-    struct ksock_accept_node *node = NULL;
+
     if (__k_accept_pop(hd, node) == KSOCK_SUC)
     {
-        return node->fd;
+        return KSOCK_SUC;
     }
     else
     {

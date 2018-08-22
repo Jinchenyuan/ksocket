@@ -109,6 +109,14 @@ static int k_accept(const int hd);
 */
 static int k_accept_cancel(const int hd, int is_clear_accept);
 
+/**
+ * 获取accept node
+ * @param hd        socket标志
+ * @param node      用于接收结果的参数
+ * @return          成功时返回KSOCK_SUC；错误时则返回KSOCK_ERR，错误信息将被设置           
+*/
+int k_get_accept_node(const int hd, struct ksock_accept_node *node);
+
 #ifdef __cplusplus
 }
 #endif
