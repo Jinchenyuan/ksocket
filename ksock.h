@@ -58,7 +58,14 @@ struct ksock_accept_node{
     struct ksock_accept_node *next;
 };
 
-struct ksock_node{
+struct kscok_connect_node{
+    int fd;
+    int hd;
+    struct sockaddr_in addr_in;
+};
+
+struct ksock_node
+{
     int fd;
     short state;
     short mode;
@@ -68,6 +75,8 @@ struct ksock_node{
     int accept_count;
     pthread_t accept_thread;
     struct ksock_init init;
+
+    struct kscok_connect_node *connect_node;
 };
 
 static char *_error_msg;
@@ -90,9 +99,19 @@ static int k_socket(const struct ksock_init i);
  * @param address   绑定的ip地址
  * @param port      绑定的端口号
  * @param family    使用的ip族
- * @return          成功时返回KSOCK_SUC，该socket的状态作相应的改改；错误时则返回KSOCK_ERR，错误信息将被设置
+ * @return          成功时返回KSOCK_SUC，该socket的状态作相应的更改；错误时则返回KSOCK_ERR，错误信息将被设置
 */
 static int k_listen(const int hd, const char *address, const uint16_t port, const short family);
+
+/**
+ * socket connect
+ * @param hd            socket 唯一标志
+ * @param address       连接的ip地址
+ * @param port          连接的端口号
+ * @param family        使用的ip族
+ * @return              成功时返回KSOCK_SUC，该socket的状态作相应的更改；错误时则返回KSOCK_ERR，错误信息将被设置
+*/
+static int k_connect(const int hd, const char *address, const uint16_t port, const short family);
 
 /**
  * 启用accept，注意：调用该函数不阻塞
@@ -105,7 +124,7 @@ static int k_accept(const int hd);
  * 取消accept
  * @param hd                socket标志
  * @param is_clear_accept   是否清除已经接收但没有处理的socket连接 1清除，非1不清除
- * @return                  成功时返回KSOCK_SUC；错误时则返回KSOCK_ERR，错误信息将被设置
+ * @return                  成功时返回KSOCK_SUC，状态回到listen；错误时则返回KSOCK_ERR，错误信息将被设置
 */
 static int k_accept_cancel(const int hd, int is_clear_accept);
 
@@ -113,29 +132,37 @@ static int k_accept_cancel(const int hd, int is_clear_accept);
  * 获取accept node
  * @param hd        socket标志
  * @param node      用于接收结果的参数
- * @return          成功时返回KSOCK_SUC；错误时则返回KSOCK_ERR，错误信息将被设置           
+ * @return          成功时返回KSOCK_SUC；错误时则返回KSOCK_ERR，错误信息将被设置     
 */
-int k_get_accept_node(const int hd, struct ksock_accept_node *node);
+static int k_get_accept_node(const int hd, struct ksock_accept_node *node);
+
+/**
+ * 获取connect node
+ * @param hd        socket标志
+ * @param node      用于接收结果的参数
+ * @return          成功时返回KSOCK_SUC；错误时则返回KSOCK_ERR，错误信息将被设置          
+*/
+static int k_get_connect_node(const int hd, struct kscok_connect_node *node);
 
 /**
  * send 与socket send一致，可参阅
- * @param node      接收到的连接
+ * @param fd        socket fd
  * @param buf       发送的缓存
  * @param len       发送的长度
  * @param flag      socket send flag
  * @return          实际发送的长度
 */
-int k_send(const struct ksock_accept_node *node, void *buf, size_t len, int flag);
+static int k_send(const int fd, void *buf, size_t len, int flag);
 
 /**
  * recv 与socket recv一致，可参阅
- * @param node      接收到的连接
+ * @param fd        socket fd
  * @param buf       recv的缓存
  * @param len       recv的长度
  * @param flag      socket recv flag
  * @return          实际接收的长度
 */
-int k_recv(const struct ksock_accept_node *node, void *buf, size_t len, int flag);
+static int k_recv(const int fd, void *buf, size_t len, int flag);
 
 #ifdef __cplusplus
 }
