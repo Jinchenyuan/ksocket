@@ -37,17 +37,34 @@ int main(int argc, char const *argv[])
     }
 
     struct ksock_accept_node *node = NULL;
+    char recv_buf[100];
     while (1)
     {
         ret = k_get_accept_node(hd, node);
         if (ret == KSOCK_SUC)
-        {
-            //收到连接，可以做想做的事情了
+        {   
             printf("get accept!!!!!!");
-        }
+            //收到连接，可以做想做的事情了
+            ret = k_recv(node->fd, recv_buf, sizeof(recv_buf), 0);
+            if (ret > 0)
+            {
+                printf("get msg: %s", recv_buf);
+            }
         else
         {
-            k_perror("get accept node");
+            if (NULL == node)
+            {
+                k_perror("get accept node");
+            }
+            else
+            {
+                ret = k_recv(node->fd, recv_buf, sizeof(recv_buf), 0);
+                if (ret > 0)
+                {
+                    printf("get msg: %s", recv_buf);
+                }
+            }
+            memset(recv_buf, 0, sizeof(recv_buf));
         }
         sleep(1);
     }
