@@ -291,14 +291,16 @@ int k_connect(const int hd, const char *address, const uint16_t port, const shor
     {
         return KSOCK_ERR;
     }
+    
+    struct ksock_accept_node *p = malloc(sizeof(struct ksock_accept_node));
+    p->fd = _hd_array[hd]->fd;
+    p->hd = hd;
 
     struct sockaddr_in addr_in = {0};
     addr_in.sin_family = family;
     addr_in.sin_port = htons(port);
     addr_in.sin_addr.s_addr = inet_addr(address);
 
-    struct ksock_accept_node *p = malloc(sizeof(struct ksock_accept_node));
-    p->hd = hd;
     p->addr_in.sin_family = addr_in.sin_family;
     p->addr_in.sin_port = addr_in.sin_port;
     p->addr_in.sin_addr.s_addr = addr_in.sin_addr.s_addr;

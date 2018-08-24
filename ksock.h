@@ -155,7 +155,7 @@ static int k_get_connect_node(const int hd, struct kscok_connect_node *node);
 static int k_send(const int fd, void *buf, size_t len, int flag);
 
 /**
- * recv 与socket recv一致，可参阅
+ * recv 与socket recv一致，可参阅 ？要不要保留recv的阻塞性 ？目前倾向于保留，把处理消息的主动性留给调用者
  * @param fd        socket fd
  * @param buf       recv的缓存
  * @param len       recv的长度
