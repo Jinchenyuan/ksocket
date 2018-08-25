@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include "../ksock.h"
 
 #define SERVER_PORT     6004
@@ -36,32 +37,35 @@ int main(int argc, char const *argv[])
         return -1;
     }
 
-    struct ksock_accept_node *node = NULL;
+    struct ksock_accept_node node;
+    node.fd = -1;
     char recv_buf[100];
     while (1)
     {
-        ret = k_get_accept_node(hd, node);
+        ret = k_get_accept_node(hd, &node);
         if (ret == KSOCK_SUC)
         {   
-            printf("get accept!!!!!!");
+            printf("get accept!!!!!!\n");
             //收到连接，可以做想做的事情了
-            ret = k_recv(node->fd, recv_buf, sizeof(recv_buf), 0);
+            ret = k_recv(node.fd, recv_buf, sizeof(recv_buf), 0);
             if (ret > 0)
             {
                 printf("get msg: %s", recv_buf);
             }
+        }
         else
         {
-            if (NULL == node)
+            if (-1 == node.fd)
             {
                 k_perror("get accept node");
             }
             else
             {
-                ret = k_recv(node->fd, recv_buf, sizeof(recv_buf), 0);
+                printf("node.fd = %d\n", node.fd);
+                ret = k_recv(node.fd, recv_buf, sizeof(recv_buf), 0);
                 if (ret > 0)
                 {
-                    printf("get msg: %s", recv_buf);
+                    printf("get msg: %s\n", recv_buf);
                 }
             }
             memset(recv_buf, 0, sizeof(recv_buf));

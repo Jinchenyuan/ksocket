@@ -12,7 +12,7 @@ const int LISTEN_QUEUE_MAX_NUM = 1000;
 const int ACCEPT_QUEUE_MAX_NUM = 100;
 struct ksock_node *_hd_array[HD_SIZE] = {NULL};
 
-inline int __check_hd(const int hd)
+int __check_hd(const int hd)
 {
     if (hd < 0 || hd >= HD_SIZE)
     {
@@ -31,7 +31,7 @@ void k_perror(const char *msg)
 {
     char c[50] = "";
     strcat(c, msg);
-    strcat(c, ": %s");
+    strcat(c, ": %s\n");
     printf(c, _error_msg);
 }
 
@@ -45,10 +45,10 @@ int __k_add(const int fd, const struct ksock_init i)
     p->accept_head = NULL;
     p->accept_tail = NULL;
     p->connect_node = NULL;
-    p->accept_thread = NULL;
+    p->accept_thread = -1;
     p->mode = KSOCK_UNKNOW;
 
-    for(int i = 0; i < HD_SIZE && (NULL != _hd_array[i]); i++)
+    for(int i = 0; i < HD_SIZE && (NULL == _hd_array[i]); i++)
     {
         _hd_array[i] = p;
         return i;
@@ -65,10 +65,10 @@ int __k_remove(const int hd)
     }
     struct ksock_node *p = _hd_array[hd];
     
-    if(NULL != p->accept_thread)
+    if(-1 != p->accept_thread)
     {
         pthread_cancel(p->accept_thread);
-        p->accept_thread = NULL;
+        p->accept_thread = -1;
     }
     k_accept_cancel(hd, 1);
     if (NULL != p->connect_node)
@@ -212,7 +212,7 @@ int k_accept(const int hd)
         return KSOCK_ERR;
     }
     
-    if (NULL != _hd_array[hd]->accept_thread)
+    if (-1 != _hd_array[hd]->accept_thread)
     {
         _error_msg = "this socket hd had accept!";
         return KSOCK_ERR;
@@ -229,13 +229,13 @@ int k_accept_cancel(const int hd, int is_clear_accept)
         return KSOCK_ERR;
     }
     
-    if (NULL == _hd_array[hd]->accept_thread)
+    if (-1 == _hd_array[hd]->accept_thread)
     {
         _error_msg = "accept_thread not exist!";
         return KSOCK_ERR;
     }
     pthread_cancel(_hd_array[hd]->accept_thread);
-    _hd_array[hd]->accept_thread = NULL;
+    _hd_array[hd]->accept_thread = -1;
     _hd_array[hd]->state = KSOCK_STATE_LISTEN;
     if (is_clear_accept)
     {

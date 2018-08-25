@@ -2,8 +2,12 @@
 #ifndef __KSOCK_H_
 #define __KSOCK_H_
 
-#include <sys/socket.h>
 #include <pthread.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -79,19 +83,19 @@ struct ksock_node
     struct kscok_connect_node *connect_node;
 };
 
-static char *_error_msg;
+char *_error_msg;
 /**
  * 当错误信息被设置，错误信息可以被打印
  * @param msg 错误信息标志
 */
-static void k_perror(const char *msg);
+void k_perror(const char *msg);
 
 /**
  * 创建socket fd
  * @param i 用于初始化socket
  * @return 当成功是返回hd，该hd用于操作socket的唯一标志符，错误时，返回KSOCK_ERR，错误信息将被设置
 */
-static int k_socket(const struct ksock_init i);
+int k_socket(const struct ksock_init i);
 
 /**
  * 启用listen
@@ -101,7 +105,7 @@ static int k_socket(const struct ksock_init i);
  * @param family    使用的ip族
  * @return          成功时返回KSOCK_SUC，该socket的状态作相应的更改；错误时则返回KSOCK_ERR，错误信息将被设置
 */
-static int k_listen(const int hd, const char *address, const uint16_t port, const short family);
+int k_listen(const int hd, const char *address, const uint16_t port, const short family);
 
 /**
  * socket connect
@@ -111,14 +115,14 @@ static int k_listen(const int hd, const char *address, const uint16_t port, cons
  * @param family        使用的ip族
  * @return              成功时返回KSOCK_SUC，该socket的状态作相应的更改；错误时则返回KSOCK_ERR，错误信息将被设置
 */
-static int k_connect(const int hd, const char *address, const uint16_t port, const short family);
+int k_connect(const int hd, const char *address, const uint16_t port, const short family);
 
 /**
  * 启用accept，注意：调用该函数不阻塞
  * @param hd    socket标志
  * @return      成功时返回KSOCK_SUC；错误时则返回KSOCK_ERR，错误信息将被设置
 */
-static int k_accept(const int hd);
+int k_accept(const int hd);
 
 /**
  * 取消accept
@@ -126,7 +130,7 @@ static int k_accept(const int hd);
  * @param is_clear_accept   是否清除已经接收但没有处理的socket连接 1清除，非1不清除
  * @return                  成功时返回KSOCK_SUC，状态回到listen；错误时则返回KSOCK_ERR，错误信息将被设置
 */
-static int k_accept_cancel(const int hd, int is_clear_accept);
+int k_accept_cancel(const int hd, int is_clear_accept);
 
 /**
  * 获取accept node
@@ -134,7 +138,7 @@ static int k_accept_cancel(const int hd, int is_clear_accept);
  * @param node      用于接收结果的参数
  * @return          成功时返回KSOCK_SUC；错误时则返回KSOCK_ERR，错误信息将被设置     
 */
-static int k_get_accept_node(const int hd, struct ksock_accept_node *node);
+int k_get_accept_node(const int hd, struct ksock_accept_node *node);
 
 /**
  * 获取connect node
@@ -142,7 +146,7 @@ static int k_get_accept_node(const int hd, struct ksock_accept_node *node);
  * @param node      用于接收结果的参数
  * @return          成功时返回KSOCK_SUC；错误时则返回KSOCK_ERR，错误信息将被设置          
 */
-static int k_get_connect_node(const int hd, struct kscok_connect_node *node);
+int k_get_connect_node(const int hd, struct kscok_connect_node *node);
 
 /**
  * send 与socket send一致，可参阅
@@ -152,7 +156,7 @@ static int k_get_connect_node(const int hd, struct kscok_connect_node *node);
  * @param flag      socket send flag
  * @return          实际发送的长度
 */
-static int k_send(const int fd, void *buf, size_t len, int flag);
+int k_send(const int fd, void *buf, size_t len, int flag);
 
 /**
  * recv 与socket recv一致，可参阅 ？要不要保留recv的阻塞性 ？目前倾向于保留，把处理消息的主动性留给调用者
@@ -162,7 +166,7 @@ static int k_send(const int fd, void *buf, size_t len, int flag);
  * @param flag      socket recv flag
  * @return          实际接收的长度
 */
-static int k_recv(const int fd, void *buf, size_t len, int flag);
+int k_recv(const int fd, void *buf, size_t len, int flag);
 
 #ifdef __cplusplus
 }

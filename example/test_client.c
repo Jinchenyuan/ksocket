@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include "../ksock.h"
 
 #define SERVER_ADDR     "192.168.44.132"
@@ -32,14 +33,17 @@ int main(int argc, char const *argv[])
     printf("connect success %d\n", ret);
     
     strcpy(send_buf, "hello world.");
-    struct kscok_connect_node *node = {0};
-    ret = k_get_connect_node(hd, node);
+    struct kscok_connect_node node;
+    ret = k_get_connect_node(hd, &node);
     if (ret == KSOCK_ERR)
     {
         k_perror("k_get_connect_node");
         return -1;
     }
-    k_send(node->fd, send_buf, strlen(send_buf), 0);
+    printf("node.fd = %d\n", node.fd);
+    printf("send_buf = %s\n", send_buf);
+    printf("send_buf size = %d\n", strlen(send_buf));
+    ret = k_send(node.fd, send_buf, strlen(send_buf), 0);
     if (ret == KSOCK_ERR)
     {
         perror("send");
