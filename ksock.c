@@ -37,7 +37,7 @@ void k_perror(const char *msg)
 
 int __k_add(const int fd, const struct ksock_init i)
 {
-    struct ksock_node *p = malloc(sizeof(struct ksock_node));
+    struct ksock_node *p = (struct ksock_node*)malloc(sizeof(struct ksock_node));
     p->init.af = i.af;
     p->init.proto = i.proto;
     p->fd = fd;
@@ -45,7 +45,7 @@ int __k_add(const int fd, const struct ksock_init i)
     p->accept_head = NULL;
     p->accept_tail = NULL;
     p->connect_node = NULL;
-    p->accept_thread = -1;
+    p->accept_thread = NULL;
     p->mode = KSOCK_UNKNOW;
 
     for(int i = 0; i < HD_SIZE && (NULL != _hd_array[i]); i++)
@@ -65,10 +65,10 @@ int __k_remove(const int hd)
     }
     struct ksock_node *p = _hd_array[hd];
     
-    if(-1 != p->accept_thread)
+    if(NULL != p->accept_thread)
     {
         pthread_cancel(p->accept_thread);
-        p->accept_thread = -1;
+        p->accept_thread = NULL;
     }
     k_accept_cancel(hd, 1);
     if (NULL != p->connect_node)
@@ -154,7 +154,7 @@ void *accept_func(void *arg)
         struct sockaddr_in client_addr = {0};
         socklen_t len = 0;
         accept_fd = accept(_hd_array[hd]->fd, (struct sockaddr*)&client_addr, &len);
-        struct ksock_accept_node *p = malloc(sizeof(struct ksock_accept_node));
+        struct ksock_accept_node *p = (struct ksock_accept_node *)malloc(sizeof(struct ksock_accept_node));
         p->fd = accept_fd;
         p->hd = hd;
         p->addr_in = client_addr;
@@ -212,7 +212,7 @@ int k_accept(const int hd)
         return KSOCK_ERR;
     }
     
-    if (-1 != _hd_array[hd]->accept_thread)
+    if (NULL != _hd_array[hd]->accept_thread)
     {
         _error_msg = "this socket hd had accept!";
         return KSOCK_ERR;
@@ -229,13 +229,13 @@ int k_accept_cancel(const int hd, int is_clear_accept)
         return KSOCK_ERR;
     }
     
-    if (-1 == _hd_array[hd]->accept_thread)
+    if (NULL == _hd_array[hd]->accept_thread)
     {
         _error_msg = "accept_thread not exist!";
         return KSOCK_ERR;
     }
     pthread_cancel(_hd_array[hd]->accept_thread);
-    _hd_array[hd]->accept_thread = -1;
+    _hd_array[hd]->accept_thread = NULL;
     _hd_array[hd]->state = KSOCK_STATE_LISTEN;
     if (is_clear_accept)
     {
@@ -292,7 +292,7 @@ int k_connect(const int hd, const char *address, const uint16_t port, const shor
         return KSOCK_ERR;
     }
     
-    struct ksock_accept_node *p = malloc(sizeof(struct ksock_accept_node));
+    struct kscok_connect_node *p = (struct kscok_connect_node*)malloc(sizeof(struct ksock_accept_node));
     p->fd = _hd_array[hd]->fd;
     p->hd = hd;
 
