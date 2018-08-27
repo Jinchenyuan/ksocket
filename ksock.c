@@ -325,10 +325,3 @@ int k_recv(const int fd, void *buf, size_t len, int flag)
 {
     return recv(fd, buf, len, flag); 
 }
-
-
-int main(int argc, char const *argv[])
-{
-    /* code */
-    return 0;
-}

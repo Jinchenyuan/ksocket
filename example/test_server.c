@@ -10,6 +10,13 @@ char recv_buf[100];
 int main(int argc, char const *argv[])
 {
     //第一步：先socket打开文件描述符
+    char *addr = SERVER_ADDR;
+    uint16_t port = SERVER_PORT;
+    if (3 == argc)
+    {
+        addr = argv[1];
+        port = atoi(argv[2]);
+    }
     int hd = -1;
     int ret = -1;
     struct ksock_init i;
@@ -24,7 +31,7 @@ int main(int argc, char const *argv[])
     printf("sock hd = %d\n", hd);
 
     //第二步：bind绑定sockfd和当前电脑的ip地址和端口号
-    ret = k_listen(hd, SERVER_ADDR, SERVER_PORT, KSOCK_INET);
+    ret = k_listen(hd, addr, port, KSOCK_INET);
     if (KSOCK_ERR == ret)
     {
         k_perror("k_listen");

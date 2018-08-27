@@ -9,6 +9,13 @@ char send_buf[100];
 
 int main(int argc, char const *argv[])
 {
+    char *addr = SERVER_ADDR;
+    uint16_t port = SERVER_PORT;
+    if (3 == argc)
+    {
+        addr = argv[1];
+        port = atoi(argv[2]);
+    }
     //第一步：先socket打开文件描述符
     int hd = -1;
     int ret = -1;
@@ -24,7 +31,7 @@ int main(int argc, char const *argv[])
     printf("sock hd = %d\n", hd);
 
     //第二步：connect连接服务器
-    ret = k_connect(hd, SERVER_ADDR, SERVER_PORT, KSOCK_INET);
+    ret = k_connect(hd, addr, port, KSOCK_INET);
     if (ret == KSOCK_ERR)
     {
         k_perror("k_connect");
