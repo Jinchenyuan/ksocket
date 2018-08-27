@@ -55,17 +55,11 @@ struct ksock_init{
     short proto;
 };
 
-struct ksock_accept_node{
+struct ksock_connect_node{
     int fd;
     int hd;
     struct sockaddr_in addr_in;
-    struct ksock_accept_node *next;
-};
-
-struct kscok_connect_node{
-    int fd;
-    int hd;
-    struct sockaddr_in addr_in;
+    struct ksock_connect_node *next;
 };
 
 struct ksock_node
@@ -74,13 +68,13 @@ struct ksock_node
     short state;
     short mode;
     uint16_t port;
-    struct ksock_accept_node *accept_head;
-    struct ksock_accept_node *accept_tail;
+    struct ksock_connect_node *accept_head;
+    struct ksock_connect_node *accept_tail;
     int accept_count;
     pthread_t accept_thread;
     struct ksock_init init;
 
-    struct kscok_connect_node *connect_node;
+    struct ksock_connect_node *connect_node;
 };
 
 char *_error_msg;
@@ -138,7 +132,7 @@ int k_accept_cancel(const int hd, int is_clear_accept);
  * @param node      用于接收结果的参数
  * @return          成功时返回KSOCK_SUC；错误时则返回KSOCK_ERR，错误信息将被设置     
 */
-int k_get_accept_node(const int hd, struct ksock_accept_node *node);
+int k_get_accept_node(const int hd, struct ksock_connect_node *node);
 
 /**
  * 获取connect node
@@ -146,27 +140,34 @@ int k_get_accept_node(const int hd, struct ksock_accept_node *node);
  * @param node      用于接收结果的参数
  * @return          成功时返回KSOCK_SUC；错误时则返回KSOCK_ERR，错误信息将被设置          
 */
-int k_get_connect_node(const int hd, struct kscok_connect_node *node);
+int k_get_connect_node(const int hd, struct ksock_connect_node *node);
 
 /**
  * send 与socket send一致，可参阅
- * @param fd        socket fd
+ * @param node      已连接的node
  * @param buf       发送的缓存
  * @param len       发送的长度
  * @param flag      socket send flag
  * @return          实际发送的长度
 */
-int k_send(const int fd, void *buf, size_t len, int flag);
+int k_send(const struct ksock_connect_node node, void *buf, size_t len, int flag);
 
 /**
  * recv 与socket recv一致，可参阅 ？要不要保留recv的阻塞性 ？目前倾向于保留，把处理消息的主动性留给调用者
- * @param fd        socket fd
+ * @param node      已连接的node
  * @param buf       recv的缓存
  * @param len       recv的长度
  * @param flag      socket recv flag
  * @return          实际接收的长度
 */
-int k_recv(const int fd, void *buf, size_t len, int flag);
+int k_recv(const struct ksock_connect_node node, void *buf, size_t len, int flag);
+
+/**
+ * socket close    注意，一旦关闭，该hd将废弃。
+ * @param hd       socket标志
+ * @return          成功时返回KSOCK_SUC；错误时则返回KSOCK_ERR，错误信息将被设置 
+*/
+int k_close(const int hd);
 
 #ifdef __cplusplus
 }

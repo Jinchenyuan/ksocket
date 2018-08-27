@@ -44,17 +44,19 @@ int main(int argc, char const *argv[])
         return -1;
     }
 
-    struct ksock_accept_node node;
+    struct ksock_connect_node node;
     node.fd = -1;
     char recv_buf[100];
+    int idx = 50;
     while (1)
     {
+        
         ret = k_get_accept_node(hd, &node);
         if (ret == KSOCK_SUC)
         {   
             printf("get accept!!!!!!\n");
             //收到连接，可以做想做的事情了
-            ret = k_recv(node.fd, recv_buf, sizeof(recv_buf), 0);
+            ret = k_recv(node, recv_buf, sizeof(recv_buf), 0);
             if (ret > 0)
             {
                 printf("get msg: %s", recv_buf);
@@ -69,7 +71,7 @@ int main(int argc, char const *argv[])
             else
             {
                 printf("node.fd = %d\n", node.fd);
-                ret = k_recv(node.fd, recv_buf, sizeof(recv_buf), 0);
+                ret = k_recv(node, recv_buf, sizeof(recv_buf), 0);
                 if (ret > 0)
                 {
                     printf("get msg: %s\n", recv_buf);
@@ -78,6 +80,15 @@ int main(int argc, char const *argv[])
             memset(recv_buf, 0, sizeof(recv_buf));
         }
         sleep(1);
+        idx--;
+        if(idx <= 0)
+        {
+            ret = k_accept_cancel(hd, 1);
+            if (ret == KSOCK_SUC)
+            {
+                printf("cancel accept!\n");
+            }
+        }
     }
 
     return 0;
