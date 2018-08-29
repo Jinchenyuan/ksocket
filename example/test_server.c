@@ -46,48 +46,31 @@ int main(int argc, char const *argv[])
 
     struct ksock_connect_node node;
     node.fd = -1;
-    char recv_buf[100];
-    int idx = 50;
-    while (1)
+   
+    ret = k_get_accept_node(hd, &node);
+    if (ret == KSOCK_SUC)
+    {   
+        printf("get accept!!!!!!\n");
+        //收到连接，可以做想做的事情了
+        ret = k_recv(&node, 100, 0);
+        if (ret > 0)
+        {
+            printf("recv success.\n");
+        }
+    }
+
+    //接下来，可以去获取消息
+    while(1)
     {
-        
-        ret = k_get_accept_node(hd, &node);
+        struct ksock_msg msg;
+        ret = k_get_recv_msg(&node, &msg);
         if (ret == KSOCK_SUC)
-        {   
-            printf("get accept!!!!!!\n");
-            //收到连接，可以做想做的事情了
-            ret = k_recv(node, recv_buf, sizeof(recv_buf), 0);
-            if (ret > 0)
-            {
-                printf("get msg: %s", recv_buf);
-            }
+        {
+            printf("msg: [%s]\n", (char *)msg.buf);
         }
         else
         {
-            if (-1 == node.fd)
-            {
-                k_perror("get accept node");
-            }
-            else
-            {
-                printf("node.fd = %d\n", node.fd);
-                ret = k_recv(node, recv_buf, sizeof(recv_buf), 0);
-                if (ret > 0)
-                {
-                    printf("get msg: %s\n", recv_buf);
-                }
-            }
-            memset(recv_buf, 0, sizeof(recv_buf));
-        }
-        sleep(1);
-        idx--;
-        if(idx <= 0)
-        {
-            ret = k_accept_cancel(hd, 1);
-            if (ret == KSOCK_SUC)
-            {
-                printf("cancel accept!\n");
-            }
+             sleep(0.5);
         }
     }
 

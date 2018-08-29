@@ -97,7 +97,7 @@ char *_error_msg;
 */
 void k_perror(const char *msg);
 
-inline int __check_hd(const int hd);
+// inline int __check_hd(const int hd);
 
 /**
  * 创建socket fd
@@ -171,7 +171,7 @@ int k_send(const struct ksock_connect_node node, void *buf, size_t len, int flag
  * recv 与socket recv一致，可参阅 ？要不要保留recv的阻塞性 ？目前倾向于保留，把处理消息的主动性留给调用者
  * @param node      已连接的node
  * @param buf       recv的缓存
- * @param len       recv的长度
+ * @param len       recv的缓存区最大值
  * @param flag      socket recv flag
  * @return          实际接收的长度
 */

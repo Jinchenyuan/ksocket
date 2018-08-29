@@ -20,7 +20,7 @@ struct recv_param
     int     flag;
 };
 
-inline int
+static inline int
 __check_hd(const int hd)
 {
     if (hd < 0 || hd >= HD_SIZE)
@@ -169,14 +169,14 @@ __k_recv_push(struct ksock_connect_node *node, struct ksock_msg *msg)
 {
     if (NULL == node->msg_tail)
     {
-        _hd_array[hd]->msg_tail = _hd_array[hd]->msg_head = node;
+        node->msg_tail = node->msg_head = node;
     }
     else
     {
-        _hd_array[hd]->msg_tail->next = node;
-        _hd_array[hd]->msg_tail = node;
+        node->msg_tail->next = node;
+        node->msg_tail = node;
     }
-    _hd_array[hd]->recv_count += 1;
+    node->recv_count += 1;
     return KSOCK_SUC;
 }
 

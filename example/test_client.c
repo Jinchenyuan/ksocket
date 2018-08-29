@@ -39,7 +39,7 @@ int main(int argc, char const *argv[])
     }
     printf("connect success %d\n", ret);
     
-    strcpy(send_buf, "hello world.");
+    strcpy(send_buf, "hello world:");
     struct ksock_connect_node node;
     ret = k_get_connect_node(hd, &node);
     if (ret == KSOCK_ERR)
@@ -47,15 +47,20 @@ int main(int argc, char const *argv[])
         k_perror("k_get_connect_node");
         return -1;
     }
-    printf("node.fd = %d\n", node.fd);
-    printf("send_buf = %s\n", send_buf);
-    printf("send_buf size = %d\n", strlen(send_buf));
-    ret = k_send(node, send_buf, strlen(send_buf), 0);
-    if (ret == KSOCK_ERR)
+    char tmp[10] = {'1', '2', '3', '4', '5', '6', '7', '8', '9', '10'};
+    int idx = 0;
+    while (idx < 10)
     {
-        perror("send");
-        return -1;
+        strcpy(send_buf, tmp[idx]);
+        ret = k_send(node, send_buf, strlen(send_buf), 0);
+        if (ret == KSOCK_ERR)
+        {
+            perror("k_send");
+            return -1;
+        }
+        printf("send %d char\n", ret);
+        idx++;
     }
-    printf("send %d char\n", ret);
+
     return 0;
 }
