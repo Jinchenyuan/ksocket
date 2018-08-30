@@ -1,5 +1,7 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "../ksock.h"
 
 #define SERVER_PORT     6004
@@ -10,7 +12,7 @@ char recv_buf[100];
 int main(int argc, char const *argv[])
 {
     //第一步：先socket打开文件描述符
-    char *addr = SERVER_ADDR;
+    const char *addr = SERVER_ADDR;
     uint16_t port = SERVER_PORT;
     if (3 == argc)
     {
@@ -46,17 +48,22 @@ int main(int argc, char const *argv[])
 
     struct ksock_connect_node node;
     node.fd = -1;
-   
-    ret = k_get_accept_node(hd, &node);
-    if (ret == KSOCK_SUC)
-    {   
-        printf("get accept!!!!!!\n");
-        //收到连接，可以做想做的事情了
-        ret = k_recv(&node, 100, 0);
-        if (ret > 0)
-        {
-            printf("recv success.\n");
+
+    ret = -1;
+    while(ret == -1)
+    {
+        ret = k_get_accept_node(hd, &node);
+        if (ret == KSOCK_SUC)
+        {   
+            printf("get accept!!!!!!\n");
+            //收到连接，可以做想做的事情了
+            ret = k_recv(&node, 100, 0);
+            if (ret == KSOCK_SUC)
+            {
+                printf("recv success.\n");
+            }
         }
+        sleep(1);
     }
 
     //接下来，可以去获取消息
@@ -70,8 +77,10 @@ int main(int argc, char const *argv[])
         }
         else
         {
-             sleep(0.5);
+            // k_perror("k_get_recv_msg");
+            // printf("not get msg!\n");
         }
+        sleep(1);
     }
 
     return 0;

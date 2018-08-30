@@ -151,8 +151,9 @@ __k_accept_pop(const int hd, struct ksock_connect_node *node)
     node->recv_thread = _hd_array[hd]->accept_head->recv_thread;
     node->msg_head = NULL;
     node->msg_tail = NULL;
+    node->recv_count = _hd_array[hd]->accept_head->recv_count;
     node->next = NULL;
-    struct kscok_connect_node *temp = _hd_array[hd]->accept_head;
+    struct ksock_connect_node *temp = _hd_array[hd]->accept_head;
     _hd_array[hd]->accept_head = _hd_array[hd]->accept_head->next;
     _hd_array[hd]->accept_count -= 1;
     free(temp);
@@ -169,12 +170,12 @@ __k_recv_push(struct ksock_connect_node *node, struct ksock_msg *msg)
 {
     if (NULL == node->msg_tail)
     {
-        node->msg_tail = node->msg_head = node;
+        node->msg_tail = node->msg_head = msg;
     }
     else
     {
-        node->msg_tail->next = node;
-        node->msg_tail = node;
+        node->msg_tail->next = msg;
+        node->msg_tail = msg;
     }
     node->recv_count += 1;
     return KSOCK_SUC;
@@ -183,25 +184,37 @@ __k_recv_push(struct ksock_connect_node *node, struct ksock_msg *msg)
 int
 __k_recv_pop(struct ksock_connect_node *node, struct ksock_msg *msg)
 {
+    printf("1\n");
     if (NULL == node->msg_head)
     {
+        printf("2\n");
         _error_msg = "no msg!";
+        printf("3\n");
         return KSOCK_ERR;
     }
-
+    printf("4\n");
     msg->buf = node->msg_head->buf;
+    printf("5\n");
     msg->len = node->msg_head->len;
+    printf("6\n");
     msg->next = NULL;
-
+    printf("7\n");
     struct ksock_msg *temp = node->msg_head;
+    printf("8\n");
     node->msg_head = node->msg_head->next;
+    printf("9\n");
     node->recv_count -= 1;
+    printf("10\n");
     free(temp);
+    printf("11\n");
     temp = NULL;
+    printf("12\n");
     if (NULL == node->msg_head)
     {
+        printf("13\n");
         node->msg_tail = NULL;
     }
+    printf("14\n");
     return KSOCK_SUC;
 }
 
@@ -236,22 +249,35 @@ accept_func(void *arg)
 void *
 recv_func(void *arg)
 {
-    struct recv_param pa = *(struct recv_param *)arg;
-    while(1)
+    printf("bbbbbbbbbbbbb\n");
+    struct recv_param *temp = (struct recv_param *)arg;
+    struct recv_param pa;
+    pa.flag = temp->flag;
+    pa.len = temp->len;
+    pa.node = temp->node;
+    free(temp);
+    while (1)
     {
+        printf("111111111:%d\n", pa.node->recv_count);
         if (pa.node->recv_count < RECV_QUEUE_MAX_NUM)
         {
+            printf("22222222222\n");
             struct ksock_msg *p = (struct ksock_msg *)malloc(sizeof(struct ksock_msg));
             p->len = pa.len;
             p->next = NULL;
-            int ret = recv(pa.node->fd, p->buf, p->len, pa.flag);
+            printf("recv_func fd:%d\n", pa.node->fd);
+            printf("recv_func len:%d\n", p->len);
+            printf("recv_func flag:%d\n", pa.flag);
+            int ret = recv(pa.node->fd, (void *)&(p->buf), p->len, pa.flag);
             if (ret > 0)
             {
+                printf("lalalalalala\n");
                 p->len = ret;
                 __k_recv_push(pa.node, p);
             }
             else
             {
+                printf("wwwwwwwwww\n");
                 free(p);
             }
         }
@@ -260,6 +286,7 @@ recv_func(void *arg)
             //这里需要优化，否则可能会损耗性能
             pa.node->state = KSOCK_RECV_OVERFLOW;
         }
+        sleep(1);
     }
 }
 
@@ -445,11 +472,12 @@ k_recv(struct ksock_connect_node *node, size_t len, int flag)
         _error_msg = "this socket hd is on recv!";
         return KSOCK_ERR;
     }
-    struct recv_param pa;
-    pa.len = len;
-    pa.flag = flag;
-    pa.node = node;
-    pthread_create(node->recv_thread, NULL, recv_func, ((void *)&pa));
+    struct recv_param *pa = (struct recv_param*)malloc(sizeof(struct recv_param));
+    pa->len = len;
+    pa->flag = flag;
+    pa->node = node;
+    printf("aaaaaaaaa:%d\n", pa->node->recv_count);
+    pthread_create(&(node->recv_thread), NULL, recv_func, ((void *)pa));
     return KSOCK_SUC;
 }
 

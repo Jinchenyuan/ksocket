@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "../ksock.h"
 
@@ -9,7 +10,7 @@ char send_buf[100];
 
 int main(int argc, char const *argv[])
 {
-    char *addr = SERVER_ADDR;
+    const char *addr = SERVER_ADDR;
     uint16_t port = SERVER_PORT;
     if (3 == argc)
     {
@@ -39,7 +40,6 @@ int main(int argc, char const *argv[])
     }
     printf("connect success %d\n", ret);
     
-    strcpy(send_buf, "hello world:");
     struct ksock_connect_node node;
     ret = k_get_connect_node(hd, &node);
     if (ret == KSOCK_ERR)
@@ -47,13 +47,13 @@ int main(int argc, char const *argv[])
         k_perror("k_get_connect_node");
         return -1;
     }
-    char tmp[10] = {'1', '2', '3', '4', '5', '6', '7', '8', '9', '10'};
+    char *tmp[10] = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10"};
     int idx = 0;
-    while (idx < 10)
+    while (idx < 1)
     {
         strcpy(send_buf, tmp[idx]);
         ret = k_send(node, send_buf, strlen(send_buf), 0);
-        if (ret == KSOCK_ERR)
+        if (ret < 0)
         {
             perror("k_send");
             return -1;
@@ -61,6 +61,6 @@ int main(int argc, char const *argv[])
         printf("send %d char\n", ret);
         idx++;
     }
-
+    sleep(100);
     return 0;
 }

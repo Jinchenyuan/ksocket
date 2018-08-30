@@ -1,4 +1,4 @@
-Linux:
+linux:
 	gcc ksock.c -fpic -shared -l pthread -o libksock.so
 
 OSX:
