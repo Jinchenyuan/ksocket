@@ -77,8 +77,7 @@ int main(int argc, char const *argv[])
         }
         else
         {
-            // k_perror("k_get_recv_msg");
-            // printf("not get msg!\n");
+            k_perror("k_get_recv_msg");
         }
         sleep(1);
     }

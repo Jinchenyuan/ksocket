@@ -20,8 +20,7 @@ struct recv_param
     int     flag;
 };
 
-static inline int
-__check_hd(const int hd)
+static inline int __check_hd(const int hd)
 {
     if (hd < 0 || hd >= HD_SIZE)
     {
@@ -36,8 +35,7 @@ __check_hd(const int hd)
     return KSOCK_SUC;
 }
 
-void 
-k_perror(const char *msg)
+void k_perror(const char *msg)
 {
     char c[50] = "";
     strcat(c, msg);
@@ -45,8 +43,7 @@ k_perror(const char *msg)
     printf(c, _error_msg);
 }
 
-int 
-__k_add(const int fd, const struct ksock_init i)
+int __k_add(const int fd, const struct ksock_init i)
 {
     struct ksock_node *p = (struct ksock_node*)malloc(sizeof(struct ksock_node));
     p->init.af = i.af;
@@ -69,8 +66,7 @@ __k_add(const int fd, const struct ksock_init i)
     return KSOCK_ERR;
 }
 
-int 
-__k_remove(const int hd)
+int __k_remove(const int hd)
 {
     if (KSOCK_ERR == __check_hd(hd))
     {
@@ -101,8 +97,7 @@ __k_remove(const int hd)
     
 }
 
-int 
-__k_accept_push(struct ksock_connect_node *node)
+int __k_accept_push(struct ksock_connect_node *node)
 {
     int hd = node->hd;
     if(_hd_array[hd]->accept_count < ACCEPT_QUEUE_MAX_NUM)
@@ -132,8 +127,7 @@ __k_accept_push(struct ksock_connect_node *node)
     }
 }
 
-int 
-__k_accept_pop(const int hd, struct ksock_connect_node *node)
+int __k_accept_pop(const int hd, struct ksock_connect_node *node)
 {
     if (KSOCK_ERR == __check_hd(hd))
     {
@@ -165,8 +159,7 @@ __k_accept_pop(const int hd, struct ksock_connect_node *node)
     return KSOCK_SUC;
 }
 
-int 
-__k_recv_push(struct ksock_connect_node *node, struct ksock_msg *msg)
+int __k_recv_push(struct ksock_connect_node *node, struct ksock_msg *msg)
 {
     if (NULL == node->msg_tail)
     {
@@ -181,45 +174,29 @@ __k_recv_push(struct ksock_connect_node *node, struct ksock_msg *msg)
     return KSOCK_SUC;
 }
 
-int
-__k_recv_pop(struct ksock_connect_node *node, struct ksock_msg *msg)
+int __k_recv_pop(struct ksock_connect_node *node, struct ksock_msg *msg)
 {
-    printf("1\n");
     if (NULL == node->msg_head)
     {
-        printf("2\n");
         _error_msg = "no msg!";
-        printf("3\n");
         return KSOCK_ERR;
     }
-    printf("4\n");
     msg->buf = node->msg_head->buf;
-    printf("5\n");
     msg->len = node->msg_head->len;
-    printf("6\n");
     msg->next = NULL;
-    printf("7\n");
     struct ksock_msg *temp = node->msg_head;
-    printf("8\n");
     node->msg_head = node->msg_head->next;
-    printf("9\n");
     node->recv_count -= 1;
-    printf("10\n");
     free(temp);
-    printf("11\n");
     temp = NULL;
-    printf("12\n");
     if (NULL == node->msg_head)
     {
-        printf("13\n");
         node->msg_tail = NULL;
     }
-    printf("14\n");
     return KSOCK_SUC;
 }
 
-void *
-accept_func(void *arg)
+void * accept_func(void *arg)
 {
     int hd = *(int *)arg;
     if (NULL == _hd_array[hd])
@@ -246,10 +223,8 @@ accept_func(void *arg)
     }
 }
 
-void *
-recv_func(void *arg)
+void * recv_func(void *arg)
 {
-    printf("bbbbbbbbbbbbb\n");
     struct recv_param *temp = (struct recv_param *)arg;
     struct recv_param pa;
     pa.flag = temp->flag;
@@ -258,26 +233,19 @@ recv_func(void *arg)
     free(temp);
     while (1)
     {
-        printf("111111111:%d\n", pa.node->recv_count);
         if (pa.node->recv_count < RECV_QUEUE_MAX_NUM)
         {
-            printf("22222222222\n");
             struct ksock_msg *p = (struct ksock_msg *)malloc(sizeof(struct ksock_msg));
             p->len = pa.len;
             p->next = NULL;
-            printf("recv_func fd:%d\n", pa.node->fd);
-            printf("recv_func len:%d\n", p->len);
-            printf("recv_func flag:%d\n", pa.flag);
             int ret = recv(pa.node->fd, (void *)&(p->buf), p->len, pa.flag);
             if (ret > 0)
             {
-                printf("lalalalalala\n");
                 p->len = ret;
                 __k_recv_push(pa.node, p);
             }
             else
             {
-                printf("wwwwwwwwww\n");
                 free(p);
             }
         }
@@ -290,8 +258,7 @@ recv_func(void *arg)
     }
 }
 
-int 
-k_socket(const struct ksock_init i)
+int k_socket(const struct ksock_init i)
 {
     int sockfd = -1;
     sockfd = socket(i.af, i.proto, 0);
@@ -303,8 +270,7 @@ k_socket(const struct ksock_init i)
     __k_add(sockfd, i);
 }
 
-int 
-k_listen(const int hd, const char *address, const uint16_t port, const short family)
+int k_listen(const int hd, const char *address, const uint16_t port, const short family)
 {
     if (KSOCK_ERR == __check_hd(hd))
     {
@@ -335,8 +301,7 @@ k_listen(const int hd, const char *address, const uint16_t port, const short fam
     return KSOCK_SUC;
 }
 
-int 
-k_accept(const int hd)
+int k_accept(const int hd)
 {
     if (KSOCK_ERR == __check_hd(hd))
     {
@@ -353,8 +318,7 @@ k_accept(const int hd)
     return KSOCK_SUC;
 }
 
-int 
-k_accept_cancel(const int hd, int is_clear_accept)
+int k_accept_cancel(const int hd, int is_clear_accept)
 {
     if (KSOCK_ERR == __check_hd(hd))
     {
@@ -382,8 +346,7 @@ k_accept_cancel(const int hd, int is_clear_accept)
     return KSOCK_SUC;
 }
 
-int 
-k_get_accept_node(const int hd, struct ksock_connect_node *node)
+int k_get_accept_node(const int hd, struct ksock_connect_node *node)
 {
     if (KSOCK_ERR == __check_hd(hd))
     {
@@ -400,8 +363,7 @@ k_get_accept_node(const int hd, struct ksock_connect_node *node)
     }
 }
 
-int 
-k_get_connect_node(const int hd, struct ksock_connect_node *node)
+int k_get_connect_node(const int hd, struct ksock_connect_node *node)
 {
     if (KSOCK_ERR == __check_hd(hd))
     {
@@ -420,8 +382,7 @@ k_get_connect_node(const int hd, struct ksock_connect_node *node)
     return KSOCK_SUC;
 }
 
-int 
-k_connect(const int hd, const char *address, const uint16_t port, const short family)
+int k_connect(const int hd, const char *address, const uint16_t port, const short family)
 {
     if (KSOCK_ERR == __check_hd(hd))
     {
@@ -458,14 +419,12 @@ k_connect(const int hd, const char *address, const uint16_t port, const short fa
     return KSOCK_SUC;
 }
 
-int 
-k_send(const struct ksock_connect_node node, void *buf, size_t len, int flag)
+int k_send(const struct ksock_connect_node node, void *buf, size_t len, int flag)
 {
     return send(node.fd, buf, len, flag); 
 }
 
-int 
-k_recv(struct ksock_connect_node *node, size_t len, int flag)
+int k_recv(struct ksock_connect_node *node, size_t len, int flag)
 {
     if (-1 != node->recv_thread)
     {
@@ -476,13 +435,11 @@ k_recv(struct ksock_connect_node *node, size_t len, int flag)
     pa->len = len;
     pa->flag = flag;
     pa->node = node;
-    printf("aaaaaaaaa:%d\n", pa->node->recv_count);
     pthread_create(&(node->recv_thread), NULL, recv_func, ((void *)pa));
     return KSOCK_SUC;
 }
 
-int
-k_get_recv_msg(struct ksock_connect_node *node, struct ksock_msg *msg)
+int k_get_recv_msg(struct ksock_connect_node *node, struct ksock_msg *msg)
 {
     if (__k_recv_pop(node, msg) == KSOCK_SUC)
     {
@@ -494,8 +451,7 @@ k_get_recv_msg(struct ksock_connect_node *node, struct ksock_msg *msg)
     }
 }
 
-int
-k_recv_cancel(struct ksock_connect_node *node, int is_clear_recv)
+int k_recv_cancel(struct ksock_connect_node *node, int is_clear_recv)
 {
     if (-1 == node->recv_thread)
     {
@@ -515,8 +471,7 @@ k_recv_cancel(struct ksock_connect_node *node, int is_clear_recv)
     return KSOCK_SUC;
 }
 
-int 
-k_close(const int hd)
+int k_close(const int hd)
 {
     return __k_remove(hd);
 }
