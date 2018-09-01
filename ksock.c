@@ -181,7 +181,8 @@ int __k_recv_pop(struct ksock_connect_node *node, struct ksock_msg *msg)
         _error_msg = "no msg!";
         return KSOCK_ERR;
     }
-    msg->buf = node->msg_head->buf;
+    // msg->buf = node->msg_head->buf;
+    memcpy(msg->buf, node->msg_head->buf, node->msg_head->len);
     msg->len = node->msg_head->len;
     msg->next = NULL;
     struct ksock_msg *temp = node->msg_head;
