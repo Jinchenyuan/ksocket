@@ -70,6 +70,8 @@ int main(int argc, char const *argv[])
     while(1)
     {
         struct ksock_msg msg;
+        char buf[1024];
+        msg.buf = (void *)buf;
         ret = k_get_recv_msg(&node, &msg);
         if (ret == KSOCK_SUC)
         {
