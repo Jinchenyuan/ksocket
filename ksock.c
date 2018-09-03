@@ -40,7 +40,7 @@ static inline int __check_hd(const int hd)
 static inline int __check_nd(const long nd)
 {
     struct ksock_connect_node *p = (struct ksock_connect_node *)nd;
-    if (nd ~= p->nd)
+    if (nd != p->nd)
     {
         _error_msg = "nd not find!";
         return KSOCK_ERR;
@@ -161,7 +161,7 @@ int __k_accept_pop(const int hd, struct ksock_connect_node *node)
     node->recv_count = _hd_array[hd]->accept_head->recv_count;
     node->next = NULL;
     node->last = NULL;
-    node.nd = -1;
+    node->nd = -1;
     struct ksock_connect_node *temp = _hd_array[hd]->accept_head;
     _hd_array[hd]->accept_head = _hd_array[hd]->accept_head->next;
     _hd_array[hd]->accept_count -= 1;
@@ -175,9 +175,8 @@ int __k_accept_pop(const int hd, struct ksock_connect_node *node)
 }
 
 
-int __k_connect_push(struct ksock_connect_node *node, const long nd)
+int __k_connect_push(struct ksock_connect_node *node)
 {
-    node->nd = nd;
     if (NULL == _connect_tail)
     {
         _connect_head = _connect_tail = node;
@@ -225,6 +224,7 @@ int __k_recv_pop(struct ksock_connect_node *node, struct ksock_msg *msg)
     struct ksock_msg *temp = node->msg_head;
     node->msg_head = node->msg_head->next;
     node->recv_count -= 1;
+    free(temp->buf);
     free(temp);
     temp = NULL;
     if (NULL == node->msg_head)
@@ -258,7 +258,7 @@ void * accept_func(void *arg)
         p->recv_thread = -1;
         p->next = NULL;
         p->last = NULL;
-        p.nd = -1;
+        p->nd = -1;
         __k_accept_push(p);
     }
 }
@@ -278,7 +278,9 @@ void * recv_func(void *arg)
             struct ksock_msg *p = (struct ksock_msg *)malloc(sizeof(struct ksock_msg));
             p->len = pa.len;
             p->next = NULL;
-            int ret = recv(pa.node->fd, (void *)&(p->buf), p->len, pa.flag);
+            void *buf = malloc(p->len);
+            p->buf = buf;
+            int ret = recv(pa.node->fd, (void *)(p->buf), p->len, pa.flag);
             if (ret > 0)
             {
                 p->len = ret;
@@ -387,7 +389,6 @@ int k_accept_cancel(const int hd, int is_clear_accept)
 
 int k_get_accept_node(const int hd, long *nd)
 {
-    nd = -1;
     if (KSOCK_ERR == __check_hd(hd))
     {
         return KSOCK_ERR;
@@ -396,8 +397,9 @@ int k_get_accept_node(const int hd, long *nd)
 
     if (__k_accept_pop(hd, p) == KSOCK_SUC)
     {
-        nd = (long *)p;
-        __k_connect_push(p, *nd);
+        memcpy(nd, &p, sizeof(void *));
+        p->nd = *nd;
+        __k_connect_push(p);
         return KSOCK_SUC;
     }
     else
@@ -419,8 +421,7 @@ int k_get_connect_node(const int hd, long *nd)
         _error_msg = "connect node not exist!";
         return KSOCK_ERR;
     }
-
-    nd = (long *)(_hd_array[hd]->connect_node);
+    memcpy(nd, &(_hd_array[hd]->connect_node), sizeof(void *));
     _hd_array[hd]->connect_node->nd = *nd;
     return KSOCK_SUC;
 }
@@ -441,7 +442,7 @@ int k_connect(const int hd, const char *address, const uint16_t port, const shor
     p->recv_count = 0;
     p->next = NULL;
     p->last = NULL;
-    p.nd = -1;
+    p->nd = -1;
     p->recv_thread = -1;
 
     struct sockaddr_in addr_in = {0};
@@ -476,11 +477,6 @@ int k_send(const long nd, void *buf, size_t len, int flag)
 
 int k_recv(const long nd, size_t len, int flag)
 {
-    if (-1 != node->recv_thread)
-    {
-        _error_msg = "this socket hd is on recv!";
-        return KSOCK_ERR;
-    }
 
     if (__check_nd(nd) == KSOCK_ERR)
     {
@@ -488,10 +484,16 @@ int k_recv(const long nd, size_t len, int flag)
     }
     struct ksock_connect_node *p = (struct ksock_connect_node *)nd;
 
+    if (-1 != p->recv_thread)
+    {
+        _error_msg = "this socket hd is on recv!";
+        return KSOCK_ERR;
+    }
+
     struct recv_param *pa = (struct recv_param*)malloc(sizeof(struct recv_param));
     pa->len = len;
     pa->flag = flag;
-    pa->node = node;
+    pa->node = p;
     pthread_create(&(p->recv_thread), NULL, recv_func, ((void *)pa));
     return KSOCK_SUC;
 }
@@ -516,16 +518,18 @@ int k_get_recv_msg(const long nd, struct ksock_msg *msg)
 
 int k_recv_cancel(const long nd, int is_clear_recv)
 {
-    if (-1 == node->recv_thread)
-    {
-        _error_msg = "recv_thread not exist!";
-        return KSOCK_ERR;
-    }
+    
     if (__check_nd(nd) == KSOCK_ERR)
     {
         return KSOCK_ERR;
     }
     struct ksock_connect_node *node = (struct ksock_connect_node *)nd;
+
+    if (-1 == node->recv_thread)
+    {
+        _error_msg = "recv_thread not exist!";
+        return KSOCK_ERR;
+    }
 
     pthread_cancel(node->recv_thread);
     node->recv_thread = -1;
