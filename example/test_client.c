@@ -47,9 +47,9 @@ int main(int argc, char const *argv[])
         k_perror("k_get_connect_node");
         return -1;
     }
-    char *tmp[10] = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10"};
+    char *tmp[10] = {"hello world!", "2", "3", "4", "5", "6", "7", "8", "9", "10"};
     int idx = 0;
-    while (idx < 1)
+    while (idx < 10)
     {
         strcpy(send_buf, tmp[idx]);
         ret = k_send(node, send_buf, strlen(send_buf), 0);
