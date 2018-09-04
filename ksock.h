@@ -152,6 +152,13 @@ int k_accept_cancel(const int hd, int is_clear_accept);
 int k_get_accept_node(const int hd, long *nd);
 
 /**
+ * 移除accept node
+ * @param nd        accept node句柄
+ * @return          成功时返回KSOCK_SUC；错误时则返回KSOCK_ERR，错误信息将被设置          
+*/
+int k_remove_accept_node(const long nd);
+
+/**
  * 获取connect node
  * @param hd        socket标志
  * @param nd        用于接收结果的参数，此参数是一个句柄，是之后操作连接的唯一标志

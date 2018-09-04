@@ -95,11 +95,18 @@ int __k_remove(const int hd)
     k_accept_cancel(hd, 1);
     if (NULL != p->connect_node)
     {
-        if (-1 == p->connect_node->recv_thread)
+        if (-1 != p->connect_node->recv_thread)
         {
             pthread_cancel(p->connect_node->recv_thread);
             p->connect_node->recv_thread = -1;
         }
+
+        struct ksock_msg msg;
+        while(__k_recv_pop(p->connect_node, &msg) == KSOCK_SUC)
+        {
+            
+        }
+
         free(p->connect_node);
         p->connect_node = NULL;
     }
@@ -409,6 +416,62 @@ int k_get_accept_node(const int hd, long *nd)
     }
 }
 
+int k_remove_accept_node(const long nd)
+{
+    if (__check_nd(nd) == KSOCK_ERR)
+    {
+        return KSOCK_ERR;
+    }
+    struct ksock_connect_node *p = (struct ksock_connect_node *)nd;
+
+    if (NULL == p->next)
+    {
+        _connect_tail = p->last;
+        if (NULL == _connect_tail)
+        {
+            _connect_head = NULL;
+        }
+        else
+        {
+            _connect_tail->next = NULL;
+        }
+    }
+    else if(NULL == p->last)
+    {
+        _connect_head = p->next;
+        if (NULL == _connect_head)
+        {
+            _connect_tail = NULL;
+        }
+        else
+        {
+            _connect_head->last = NULL;
+        }
+    }
+    else
+    {
+        p->next->last = p->last;
+        p->last->next = p->next;
+    }
+
+    close(p->fd);
+
+    if (-1 != p->recv_thread)
+    {
+        pthread_cancel(p->recv_thread);
+        p->recv_thread = -1;
+    }
+
+    struct ksock_msg msg;
+    while(__k_recv_pop(p, &msg) == KSOCK_SUC)
+    {
+        
+    }
+    
+    free(p);
+    return KSOCK_SUC;
+}
+
 int k_get_connect_node(const int hd, long *nd)
 {
     if (KSOCK_ERR == __check_hd(hd))
@@ -535,10 +598,10 @@ int k_recv_cancel(const long nd, int is_clear_recv)
     node->recv_thread = -1;
     if (is_clear_recv)
     {
-        struct ksock_msg *p = NULL;
-        while(__k_recv_pop(node, p) == KSOCK_SUC)
+        struct ksock_msg p;
+        while(__k_recv_pop(node, &p) == KSOCK_SUC)
         {
-            p = NULL;
+            
         }
     }
     return KSOCK_SUC;
