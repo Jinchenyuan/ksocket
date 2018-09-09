@@ -278,24 +278,22 @@ void * recv_func(void *arg)
     pa.len = temp->len;
     pa.node = temp->node;
     free(temp);
+    void *temp_buf = malloc(pa.len);
     while (1)
     {
         if (pa.node->recv_count < RECV_QUEUE_MAX_NUM)
         {
-            struct ksock_msg *p = (struct ksock_msg *)malloc(sizeof(struct ksock_msg));
-            p->len = pa.len;
-            p->next = NULL;
-            void *buf = malloc(p->len);
-            p->buf = buf;
-            int ret = recv(pa.node->fd, (void *)(p->buf), p->len, pa.flag);
+            int ret = recv(pa.node->fd, temp_buf, pa.len, pa.flag);
             if (ret > 0)
             {
+                struct ksock_msg *p = (struct ksock_msg *)malloc(sizeof(struct ksock_msg));
+                p->next = NULL;
+                void *buf = malloc(ret);
+                memcpy(temp_buf, buf, ret);
+                p->buf = buf;
                 p->len = ret;
                 __k_recv_push(pa.node, p);
-            }
-            else
-            {
-                free(p);
+                bzero(temp_buf, pa.len);
             }
         }
         else
