@@ -4,6 +4,9 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
+#include <sys/select.h>
+#include <sys/epoll.h>
+#include <sys/time.h>
 #include <string.h>
 #include "ksock.h"
 
@@ -14,6 +17,10 @@ const int RECV_QUEUE_MAX_NUM = 100;
 struct ksock_node *_hd_array[HD_SIZE] = {NULL};
 struct ksock_connect_node *_connect_head = NULL;
 struct ksock_connect_node *_connect_tail = NULL;
+
+pthread_t accept_thread = -1;
+
+pthread_t recv_thread = -1;
 
 struct recv_param
 {
@@ -66,7 +73,7 @@ int __k_add(const int fd, const struct ksock_init i)
     p->accept_head = NULL;
     p->accept_tail = NULL;
     p->connect_node = NULL;
-    p->accept_thread = -1;
+    p->accept_cnt = 0;
     p->accept_count = 0;
     p->mode = KSOCK_UNKNOW;
 
@@ -87,12 +94,11 @@ int __k_remove(const int hd)
     }
     struct ksock_node *p = _hd_array[hd];
     
-    if(-1 != p->accept_thread)
+    if(0 != p->accept_cnt)
     {
-        pthread_cancel(p->accept_thread);
-        p->accept_thread = -1;
+        k_accept_cancel(hd, 1);
     }
-    k_accept_cancel(hd, 1);
+    
     if (NULL != p->connect_node)
     {
         if (-1 != p->connect_node->recv_thread)
@@ -243,30 +249,70 @@ int __k_recv_pop(struct ksock_connect_node *node, struct ksock_msg *msg)
 
 void * accept_func(void *arg)
 {
-    int hd = *(int *)arg;
-    if (NULL == _hd_array[hd])
-    {
-        return NULL;
-    }
+     int max_fd = 0, ret = -1;
+    fd_set fdtbl;
+    struct timeval tval;
+    tval.tv_sec = 0;
+    tval.tv_usec = 2;
     while(1)
     {
-        int accept_fd = -1;
-        struct sockaddr_in client_addr = {0};
-        socklen_t len = 0;
-        accept_fd = accept(_hd_array[hd]->fd, (struct sockaddr*)&client_addr, &len);
-        struct ksock_connect_node *p = (struct ksock_connect_node *)malloc(sizeof(struct ksock_connect_node));
-        p->fd = accept_fd;
-        p->hd = hd;
-        p->state = _hd_array[hd]->state;
-        p->addr_in = client_addr;
-        p->msg_head = NULL;
-        p->msg_head = NULL;
-        p->recv_count = 0;
-        p->recv_thread = -1;
-        p->next = NULL;
-        p->last = NULL;
-        p->nd = -1;
-        __k_accept_push(p);
+        FD_ZERO(&fdtbl);
+        max_fd = 0;
+        ret = -1;
+        for (size_t i = 0; i < HD_SIZE; i++)
+        {
+            if (KSOCK_ERR == __check_hd(i))
+            {
+                break;
+            }
+            if (_hd_array[i]->fd > max_fd)
+                max_fd = _hd_array[i]->fd;
+            FD_SET(_hd_array[i]->fd, &fdtbl);
+        }
+        ret = select(max_fd + 1, &fdtbl, NULL, NULL, &tval);
+        if (ret == 0)
+        {
+            //time out
+        }
+        else if (ret == -1)
+        {
+            printf("accept error occurred in accept thread of select！");
+        }
+        else
+        {
+            for (size_t i = 0; i < HD_SIZE; i++)
+            {
+                if (KSOCK_ERR == __check_hd(i))
+                {
+                    break;
+                }
+                if (ret <= 0)
+                {
+                    break;
+                }
+                if (FD_ISSET(_hd_array[i]->fd, &fdtbl))
+                {
+                    int accept_fd = -1;
+                    struct sockaddr_in client_addr = {0};
+                    socklen_t len = 0;
+                    accept_fd = accept(_hd_array[i]->fd, (struct sockaddr*)&client_addr, &len);
+                    struct ksock_connect_node *p = (struct ksock_connect_node *)malloc(sizeof(struct ksock_connect_node));
+                    p->fd = accept_fd;
+                    p->hd = i;
+                    p->state = _hd_array[i]->state;
+                    p->addr_in = client_addr;
+                    p->msg_head = NULL;
+                    p->msg_head = NULL;
+                    p->recv_count = 0;
+                    p->recv_thread = -1;
+                    p->next = NULL;
+                    p->last = NULL;
+                    p->nd = -1;
+                    __k_accept_push(p);
+                    ret--;
+                }
+            }
+        }
     }
 }
 
@@ -355,13 +401,14 @@ int k_accept(const int hd)
         return KSOCK_ERR;
     }
     
-    if (-1 != _hd_array[hd]->accept_thread)
+    if (0 != _hd_array[hd]->accept_cnt)
     {
         _error_msg = "this socket hd had accept!";
         return KSOCK_ERR;
     }
-
-    pthread_create(&(_hd_array[hd]->accept_thread), NULL, accept_func, ((void *)&hd));
+    _hd_array[hd]->accept_cnt = 1;
+    if (-1 == accept_thread)
+        pthread_create(&accept_thread, NULL, accept_func, NULL);
     return KSOCK_SUC;
 }
 
@@ -372,13 +419,13 @@ int k_accept_cancel(const int hd, int is_clear_accept)
         return KSOCK_ERR;
     }
     
-    if (-1 == _hd_array[hd]->accept_thread)
+    if (0 == _hd_array[hd]->accept_cnt)
     {
-        _error_msg = "accept_thread not exist!";
+        _error_msg = "accept_cnt not exist!";
         return KSOCK_ERR;
     }
-    pthread_cancel(_hd_array[hd]->accept_thread);
-    _hd_array[hd]->accept_thread = -1;
+    // pthread_cancel(_hd_array[hd]->accept_cnt);
+    _hd_array[hd]->accept_cnt = 0;
     _hd_array[hd]->state = KSOCK_STATE_LISTEN;
     if (is_clear_accept)
     {

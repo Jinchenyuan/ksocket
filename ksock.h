@@ -86,7 +86,7 @@ struct ksock_node
     struct ksock_connect_node *accept_head;
     struct ksock_connect_node *accept_tail;
     int accept_count;
-    pthread_t accept_thread;
+    int accept_cnt;
     struct ksock_init init;
 
     struct ksock_connect_node *connect_node;
