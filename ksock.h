@@ -79,7 +79,7 @@ struct ksock_connect_node{
     struct ksock_msg *msg_head;
     struct ksock_msg *msg_tail;
     int recv_count;
-    pthread_t recv_thread;
+    int recv_state;
     long nd;
 };
 

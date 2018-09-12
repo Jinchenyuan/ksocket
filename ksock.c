@@ -6,12 +6,13 @@
 #include <sys/types.h>
 #include <sys/select.h>
 #include <sys/epoll.h>
+#include <fcntl.h>  
 #include <sys/time.h>
 #include <string.h>
 #include "ksock.h"
 
 #define HD_SIZE 79
-#define MAX_EVENT = 1000000;
+#define MAX_EVENTS = 1000000;
 const int LISTEN_QUEUE_MAX_NUM = 1000;
 const int ACCEPT_QUEUE_MAX_NUM = 100;
 const int RECV_QUEUE_MAX_NUM = 100;
@@ -20,15 +21,16 @@ struct ksock_connect_node *_connect_head = NULL;
 struct ksock_connect_node *_connect_tail = NULL;
 int _connect_cnt = 0
 
+int epoll_fd = 0;
 pthread_t accept_thread = -1;
-
 pthread_t recv_thread = -1;
 
 struct recv_param
 {
     struct ksock_connect_node *node;
     size_t  len;
-    int     flag;
+    void *buf;
+    int flag;
 };
 
 static inline int __check_hd(const int hd)
@@ -192,7 +194,7 @@ int __k_accept_pop(const int hd, struct ksock_connect_node *node)
 
 int __k_connect_push(struct ksock_connect_node *node)
 {
-    if (_connect_cnt > MAX_EVENT)
+    if (_connect_cnt > MAX_EVENTS)
     {
         return KSOCK_ERR;
     }
@@ -300,7 +302,7 @@ int __k_recv_pop(struct ksock_connect_node *node, struct ksock_msg *msg)
 
 void * accept_func(void *arg)
 {
-     int max_fd = 0, ret = -1;
+    int max_fd = 0, ret = -1;
     fd_set fdtbl;
     struct timeval tval;
     tval.tv_sec = 0;
@@ -350,21 +352,77 @@ void * accept_func(void *arg)
                     struct sockaddr_in client_addr = {0};
                     socklen_t len = 0;
                     accept_fd = accept(_hd_array[i]->fd, (struct sockaddr*)&client_addr, &len);
-                    struct ksock_connect_node *p = (struct ksock_connect_node *)malloc(sizeof(struct ksock_connect_node));
-                    p->fd = accept_fd;
-                    p->hd = i;
-                    p->state = _hd_array[i]->state;
-                    p->addr_in = client_addr;
-                    p->msg_head = NULL;
-                    p->msg_head = NULL;
-                    p->recv_count = 0;
-                    p->recv_thread = -1;
-                    p->next = NULL;
-                    p->last = NULL;
-                    p->nd = -1;
-                    __k_accept_push(p);
-                    ret--;
+                    if (fcntl(p->accept_fd, F_SETFL, O_NONBLOCK) < 0)
+                    {
+                        _error_msg = "connect fd nonblocking failed!";
+                        send(accept_fd, "fd nonblocking failed, then close!", 35, 0);
+                        close(accept_fd);
+                    }
+                    else
+                    {
+                        struct ksock_connect_node *p = (struct ksock_connect_node *)malloc(sizeof(struct ksock_connect_node));
+                        p->fd = accept_fd;
+                        p->hd = i;
+                        p->state = _hd_array[i]->state;
+                        p->addr_in = client_addr;
+                        p->msg_head = NULL;
+                        p->msg_head = NULL;
+                        p->recv_count = 0;
+                        p->recv_thread = -1;
+                        p->next = NULL;
+                        p->last = NULL;
+                        p->nd = -1;
+                        __k_accept_push(p);
+                        ret--;
+                    }
                 }
+            }
+        }
+    }
+}
+
+int __event_add(struct recv_param *pa)
+{
+    struct epoll_event epv;
+    epv.data.ptr = pa;
+    epv.events = EPOLLIN | EPOLLET;
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, pa->node->fd, &epv) < 0)
+    {
+        _error_msg = "epoll add fail!";
+        return KSOCK_ERR;
+    }
+    return KSOCK_SUC;
+}
+
+void __event_del(struct recv_param *pa)
+{
+
+}
+
+void * recv_func(void *arg)
+{
+    struct epoll_event events[MAX_EVENTS];
+    int fds = epoll_wait(epoll_fd, events, MAX_EVENTS, 2);
+    if (fds < 0)
+    {
+        //主线程需要回收本子线程
+        printf("epoll wait error! please exit thread!\n");
+        return NULL;
+    }
+    
+    for(int i = 0; i < fds; i++)
+    {
+        struct recv_param *pa = (struct recv_param *)events[i].data.ptr;
+        if (events[i].events&(EPOLLIN | EPOLLET))
+        {
+            bzero(pa->buf, pa->len);
+            if (pa->node->recv_count < RECV_QUEUE_MAX_NUM)
+            {
+
+            }
+            else
+            {
+                pa->node->state = KSOCK_RECV_OVERFLOW;
             }
         }
     }
@@ -589,6 +647,13 @@ int k_connect(const int hd, const char *address, const uint16_t port, const shor
         _error_msg = "connect fail, error message printed!";
         return KSOCK_ERR;
     }
+    if (fcntl(p->fd, F_SETFL, O_NONBLOCK) < 0)
+    {
+        _error_msg = "connect fd nonblocking failed!";
+        close(p->fd);
+        free(p);
+        return KSOCK_ERR;
+    }
     _hd_array[hd]->connect_node = p;
     _hd_array[hd]->state = KSOCK_STATE_ACTIVE;
     return KSOCK_SUC;
@@ -613,7 +678,7 @@ int k_recv(const long nd, size_t len, int flag)
     }
     struct ksock_connect_node *p = (struct ksock_connect_node *)nd;
 
-    if (-1 != p->recv_thread)
+    if (1 == p->recv_state)
     {
         _error_msg = "this socket hd is on recv!";
         return KSOCK_ERR;
@@ -623,6 +688,20 @@ int k_recv(const long nd, size_t len, int flag)
     pa->len = len;
     pa->flag = flag;
     pa->node = p;
+    void *buf = malloc(pa->len);
+    pa->buf = buf;
+    if (epoll_fd == 0)
+    {
+        epoll_fd = epoll_create(MAX_EVENTS)
+        if (epoll_fd <= 0)
+        {
+            _error_msg = "create epoll fail!";
+            return KSOCK_ERR;
+        }
+    }
+    if (__event_add(pa) == KSOCK_ERR)
+        return KSOCK_ERR;
+
     if (-1 == recv_thread)
         pthread_create(&recv_thread, NULL, recv_func, NULL);
     return KSOCK_SUC;
