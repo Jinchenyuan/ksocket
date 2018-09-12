@@ -11,12 +11,14 @@
 #include "ksock.h"
 
 #define HD_SIZE 79
+#define MAX_EVENT = 1000000;
 const int LISTEN_QUEUE_MAX_NUM = 1000;
 const int ACCEPT_QUEUE_MAX_NUM = 100;
 const int RECV_QUEUE_MAX_NUM = 100;
 struct ksock_node *_hd_array[HD_SIZE] = {NULL};
 struct ksock_connect_node *_connect_head = NULL;
 struct ksock_connect_node *_connect_tail = NULL;
+int _connect_cnt = 0
 
 pthread_t accept_thread = -1;
 
@@ -73,7 +75,7 @@ int __k_add(const int fd, const struct ksock_init i)
     p->accept_head = NULL;
     p->accept_tail = NULL;
     p->connect_node = NULL;
-    p->accept_cnt = 0;
+    p->accept_state = 0;
     p->accept_count = 0;
     p->mode = KSOCK_UNKNOW;
 
@@ -94,7 +96,7 @@ int __k_remove(const int hd)
     }
     struct ksock_node *p = _hd_array[hd];
     
-    if(0 != p->accept_cnt)
+    if(0 != p->accept_state)
     {
         k_accept_cancel(hd, 1);
     }
@@ -190,6 +192,10 @@ int __k_accept_pop(const int hd, struct ksock_connect_node *node)
 
 int __k_connect_push(struct ksock_connect_node *node)
 {
+    if (_connect_cnt > MAX_EVENT)
+    {
+        return KSOCK_ERR;
+    }
     if (NULL == _connect_tail)
     {
         _connect_head = _connect_tail = node;
@@ -200,13 +206,58 @@ int __k_connect_push(struct ksock_connect_node *node)
         node->last = _connect_tail;
         _connect_tail = node;
     }
-    //目前没有容量限制，push总是成功的
+    _connect_cnt++;
     return KSOCK_SUC;
 }
 
 int __k_connect_remove(struct ksock_connect_node *node)
 {
+    if (NULL == p->next)
+    {
+        _connect_tail = p->last;
+        if (NULL == _connect_tail)
+        {
+            _connect_head = NULL;
+        }
+        else
+        {
+            _connect_tail->next = NULL;
+        }
+    }
+    else if(NULL == p->last)
+    {
+        _connect_head = p->next;
+        if (NULL == _connect_head)
+        {
+            _connect_tail = NULL;
+        }
+        else
+        {
+            _connect_head->last = NULL;
+        }
+    }
+    else
+    {
+        p->next->last = p->last;
+        p->last->next = p->next;
+    }
 
+    close(p->fd);
+
+    if (-1 != p->recv_thread)
+    {
+        pthread_cancel(p->recv_thread);
+        p->recv_thread = -1;
+    }
+
+    struct ksock_msg msg;
+    while(__k_recv_pop(p, &msg) == KSOCK_SUC)
+    {
+        
+    }
+    _connect_cnt--;
+    free(p);
+    return KSOCK_SUC
 }
 
 int __k_recv_push(struct ksock_connect_node *node, struct ksock_msg *msg)
@@ -265,9 +316,12 @@ void * accept_func(void *arg)
             {
                 break;
             }
-            if (_hd_array[i]->fd > max_fd)
+            if (_hd_array[i]->accept_state == 1)
+            {
+                if (_hd_array[i]->fd > max_fd)
                 max_fd = _hd_array[i]->fd;
-            FD_SET(_hd_array[i]->fd, &fdtbl);
+                FD_SET(_hd_array[i]->fd, &fdtbl);
+            }
         }
         ret = select(max_fd + 1, &fdtbl, NULL, NULL, &tval);
         if (ret == 0)
@@ -401,12 +455,12 @@ int k_accept(const int hd)
         return KSOCK_ERR;
     }
     
-    if (0 != _hd_array[hd]->accept_cnt)
+    if (0 != _hd_array[hd]->accept_state)
     {
         _error_msg = "this socket hd had accept!";
         return KSOCK_ERR;
     }
-    _hd_array[hd]->accept_cnt = 1;
+    _hd_array[hd]->accept_state = 1;
     if (-1 == accept_thread)
         pthread_create(&accept_thread, NULL, accept_func, NULL);
     return KSOCK_SUC;
@@ -419,13 +473,13 @@ int k_accept_cancel(const int hd, int is_clear_accept)
         return KSOCK_ERR;
     }
     
-    if (0 == _hd_array[hd]->accept_cnt)
+    if (0 == _hd_array[hd]->accept_state)
     {
-        _error_msg = "accept_cnt not exist!";
+        _error_msg = "accept_state not exist!";
         return KSOCK_ERR;
     }
-    // pthread_cancel(_hd_array[hd]->accept_cnt);
-    _hd_array[hd]->accept_cnt = 0;
+    // pthread_cancel(_hd_array[hd]->accept_state);
+    _hd_array[hd]->accept_state = 0;
     _hd_array[hd]->state = KSOCK_STATE_LISTEN;
     if (is_clear_accept)
     {
@@ -445,14 +499,26 @@ int k_get_accept_node(const int hd, long *nd)
     {
         return KSOCK_ERR;
     }
+    //这里待优化，不用每次都申请堆内存，确定有链接之后再去申请也不迟
     struct ksock_connect_node *p = (struct ksock_connect_node *)malloc(sizeof(struct ksock_connect_node));
 
     if (__k_accept_pop(hd, p) == KSOCK_SUC)
     {
-        memcpy(nd, &p, sizeof(void *));
-        p->nd = *nd;
-        __k_connect_push(p);
-        return KSOCK_SUC;
+        
+        if (__k_connect_push(p) == KSOCK_SUC)
+        {
+            memcpy(nd, &p, sizeof(void *));
+            p->nd = *nd;
+            return KSOCK_SUC;
+        }
+        else
+        {
+            send(p->fd, "connect cnt overflow!", 21, 0);
+            close(p->fd);
+            free(p);
+            return KSOCK_ERR;
+        }
+        
     }
     else
     {
@@ -461,59 +527,14 @@ int k_get_accept_node(const int hd, long *nd)
     }
 }
 
-int k_remove_accept_node(const long nd)
+int k_remove_connect_node(const long nd)
 {
     if (__check_nd(nd) == KSOCK_ERR)
     {
         return KSOCK_ERR;
     }
     struct ksock_connect_node *p = (struct ksock_connect_node *)nd;
-
-    if (NULL == p->next)
-    {
-        _connect_tail = p->last;
-        if (NULL == _connect_tail)
-        {
-            _connect_head = NULL;
-        }
-        else
-        {
-            _connect_tail->next = NULL;
-        }
-    }
-    else if(NULL == p->last)
-    {
-        _connect_head = p->next;
-        if (NULL == _connect_head)
-        {
-            _connect_tail = NULL;
-        }
-        else
-        {
-            _connect_head->last = NULL;
-        }
-    }
-    else
-    {
-        p->next->last = p->last;
-        p->last->next = p->next;
-    }
-
-    close(p->fd);
-
-    if (-1 != p->recv_thread)
-    {
-        pthread_cancel(p->recv_thread);
-        p->recv_thread = -1;
-    }
-
-    struct ksock_msg msg;
-    while(__k_recv_pop(p, &msg) == KSOCK_SUC)
-    {
-        
-    }
-    
-    free(p);
+    __k_connect_remove(p);
     return KSOCK_SUC;
 }
 
@@ -565,7 +586,7 @@ int k_connect(const int hd, const char *address, const uint16_t port, const shor
     if (ret < 0)
     {
         perror("k_connect");
-        _error_msg = "connect fail, error message had print!";
+        _error_msg = "connect fail, error message printed!";
         return KSOCK_ERR;
     }
     _hd_array[hd]->connect_node = p;
@@ -602,7 +623,8 @@ int k_recv(const long nd, size_t len, int flag)
     pa->len = len;
     pa->flag = flag;
     pa->node = p;
-    pthread_create(&(p->recv_thread), NULL, recv_func, ((void *)pa));
+    if (-1 == recv_thread)
+        pthread_create(&recv_thread, NULL, recv_func, NULL);
     return KSOCK_SUC;
 }
 

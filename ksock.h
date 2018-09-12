@@ -1,3 +1,9 @@
+/**
+ * author jinchenyuan 2018-08-14
+ * email: jinchenyuan@outlook.com
+ * 有任何问题或建议，可以联系以上邮箱
+*/
+
 
 #ifndef __KSOCK_H_
 #define __KSOCK_H_
@@ -85,8 +91,10 @@ struct ksock_node
     uint16_t port;
     struct ksock_connect_node *accept_head;
     struct ksock_connect_node *accept_tail;
+    //已经接收到并且放入accept队列中的node数量
     int accept_count;
-    int accept_cnt;
+    //是否开启接收连接的状态
+    int accept_state;
     struct ksock_init init;
 
     struct ksock_connect_node *connect_node;
@@ -144,7 +152,7 @@ int k_accept(const int hd);
 int k_accept_cancel(const int hd, int is_clear_accept);
 
 /**
- * 获取accept node   注意：一旦accept node 被取走，拿到的一方必须为后续对该node做的做的操作负责
+ * 获取accept node   注意：服务端请调用该函数，一旦accept node 被取走，拿到的一方必须为后续对该node做的做的操作负责
  * @param hd        socket标志
  * @param nd        用于接收结果的参数，此参数是一个句柄，是之后操作连接的唯一标志
  * @return          成功时返回KSOCK_SUC；错误时则返回KSOCK_ERR，错误信息将被设置     
@@ -152,14 +160,14 @@ int k_accept_cancel(const int hd, int is_clear_accept);
 int k_get_accept_node(const int hd, long *nd);
 
 /**
- * 移除accept node
+ * 移除accept node  注意：客户端请勿调用该函数
  * @param nd        accept node句柄
  * @return          成功时返回KSOCK_SUC；错误时则返回KSOCK_ERR，错误信息将被设置          
 */
-int k_remove_accept_node(const long nd);
+int k_remove_connect_node(const long nd);
 
 /**
- * 获取connect node
+ * 获取connect node  客户端请调用该函数
  * @param hd        socket标志
  * @param nd        用于接收结果的参数，此参数是一个句柄，是之后操作连接的唯一标志
  * @return          成功时返回KSOCK_SUC；错误时则返回KSOCK_ERR，错误信息将被设置          
