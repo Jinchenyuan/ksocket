@@ -12,14 +12,14 @@
 #include "ksock.h"
 
 #define HD_SIZE 79
-#define MAX_EVENTS = 1000000;
+#define MAX_EVENTS 1000000
 const int LISTEN_QUEUE_MAX_NUM = 1000;
 const int ACCEPT_QUEUE_MAX_NUM = 100;
 const int RECV_QUEUE_MAX_NUM = 100;
 struct ksock_node *_hd_array[HD_SIZE] = {NULL};
 struct ksock_connect_node *_connect_head = NULL;
 struct ksock_connect_node *_connect_tail = NULL;
-int _connect_cnt = 0
+int _connect_cnt = 0;
 
 int epoll_fd = 0;
 pthread_t accept_thread = -1;
@@ -212,7 +212,7 @@ int __k_connect_push(struct ksock_connect_node *node)
     return KSOCK_SUC;
 }
 
-int __k_connect_remove(struct ksock_connect_node *node)
+int __k_connect_remove(struct ksock_connect_node *p)
 {
     if (NULL == p->next)
     {
@@ -259,7 +259,7 @@ int __k_connect_remove(struct ksock_connect_node *node)
     }
     _connect_cnt--;
     free(p);
-    return KSOCK_SUC
+    return KSOCK_SUC;
 }
 
 int __k_recv_push(struct ksock_connect_node *node, struct ksock_msg *msg)
@@ -352,7 +352,7 @@ void * accept_func(void *arg)
                     struct sockaddr_in client_addr = {0};
                     socklen_t len = 0;
                     accept_fd = accept(_hd_array[i]->fd, (struct sockaddr*)&client_addr, &len);
-                    if (fcntl(p->accept_fd, F_SETFL, O_NONBLOCK) < 0)
+                    if (fcntl(accept_fd, F_SETFL, O_NONBLOCK) < 0)
                     {
                         _error_msg = "connect fd nonblocking failed!";
                         send(accept_fd, "fd nonblocking failed, then close!", 35, 0);
@@ -412,17 +412,37 @@ void * recv_func(void *arg)
     
     for(int i = 0; i < fds; i++)
     {
+        int ret = 0;
         struct recv_param *pa = (struct recv_param *)events[i].data.ptr;
         if (events[i].events&(EPOLLIN | EPOLLET))
-        {
-            bzero(pa->buf, pa->len);
-            if (pa->node->recv_count < RECV_QUEUE_MAX_NUM)
+        { 
+            do
             {
-
-            }
-            else
+                bzero(pa->buf, pa->len);
+                ret = recv(pa->node->fd, pa->buf, pa->len, pa->flag);
+                if (ret > 0)
+                {
+                    if (pa->node->recv_count < RECV_QUEUE_MAX_NUM)
+                    {
+                        struct ksock_msg *p = (struct ksock_msg *)malloc(sizeof(struct ksock_msg));
+                        p->next = NULL;
+                        void *buf = malloc(ret);
+                        memcpy(buf, pa->buf, ret);
+                        p->buf = buf;
+                        p->len = ret;
+                        __k_recv_push(pa->node, p);
+                    }
+                    else
+                    {
+                        printf("warnning fd: %d, recv queue overflow!", pa->node->fd);
+                        pa->node->state = KSOCK_RECV_OVERFLOW;
+                    }
+                }
+                
+            } while (ret > 0);
+            if (ret == 0)
             {
-                pa->node->state = KSOCK_RECV_OVERFLOW;
+                //socket被正常关闭,可以做后续的移除工作
             }
         }
     }
@@ -692,7 +712,7 @@ int k_recv(const long nd, size_t len, int flag)
     pa->buf = buf;
     if (epoll_fd == 0)
     {
-        epoll_fd = epoll_create(MAX_EVENTS)
+        epoll_fd = epoll_create(MAX_EVENTS);
         if (epoll_fd <= 0)
         {
             _error_msg = "create epoll fail!";
