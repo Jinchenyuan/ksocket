@@ -55,6 +55,7 @@ enum ksock_state
     KSOCK_STATE_ACTIVE,
     KSOCK_ACCEPT_OVERFLOW,
     KSOCK_RECV_OVERFLOW,
+    KSOCK_CLOSED,
 };
 
 struct ksock_msg{

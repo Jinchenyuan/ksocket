@@ -29,7 +29,6 @@ struct recv_param
 {
     struct ksock_connect_node *node;
     size_t  len;
-    void *buf;
     int flag;
 };
 
@@ -391,12 +390,17 @@ int __event_add(struct recv_param *pa)
         _error_msg = "epoll add fail!";
         return KSOCK_ERR;
     }
+    pa->node->recv_state = 1;
     return KSOCK_SUC;
 }
 
 void __event_del(struct recv_param *pa)
 {
-
+    struct epoll_event epv;
+    epv.data.ptr = pa;
+    epoll_ctl(epoll_fd, EPOLL_CTL_DEL, pa->node->fd, &epv);
+    pa->node->recv_state = 0;
+    free(pa);
 }
 
 void * recv_func(void *arg)
@@ -443,6 +447,9 @@ void * recv_func(void *arg)
             if (ret == 0)
             {
                 //socket被正常关闭,可以做后续的移除工作
+                pa->node->state = KSOCK_CLOSED;
+                k_remove_connect_node(pa->node->nd);
+                __event_del(pa);
             }
         }
     }
@@ -591,7 +598,7 @@ int k_get_accept_node(const int hd, long *nd)
         }
         else
         {
-            send(p->fd, "connect cnt overflow!", 21, 0);
+            send(p->fd, "sever connect cnt overflow!", 30, 0);
             close(p->fd);
             free(p);
             return KSOCK_ERR;
@@ -628,9 +635,26 @@ int k_get_connect_node(const int hd, long *nd)
         _error_msg = "connect node not exist!";
         return KSOCK_ERR;
     }
-    memcpy(nd, &(_hd_array[hd]->connect_node), sizeof(void *));
-    _hd_array[hd]->connect_node->nd = *nd;
-    return KSOCK_SUC;
+    if (_hd_array[hd]->connect_node->nd > 0)
+    {
+        *nd = _hd_array[hd]->connect_node->nd;
+        printf("get nd aready, please check it!");
+        return KSOCK_SUC;
+    }
+    if (__k_connect_push(_hd_array[hd]->connect_node) == KSOCK_SUC)
+    {
+        memcpy(nd, &(_hd_array[hd]->connect_node), sizeof(void *));
+        _hd_array[hd]->connect_node->nd = *nd;
+        return KSOCK_SUC;
+    }   
+    else
+    {
+        send(_hd_array[hd]->connect_node->fd, "client connect cnt overflow!", 30, 0);
+        close(_hd_array[hd]->connect_node->fd);
+        free(_hd_array[hd]->connect_node);
+        _hd_array[hd]->connect_node = NULL;
+        return KSOCK_ERR;
+    }
 }
 
 int k_connect(const int hd, const char *address, const uint16_t port, const short family)
@@ -650,7 +674,7 @@ int k_connect(const int hd, const char *address, const uint16_t port, const shor
     p->next = NULL;
     p->last = NULL;
     p->nd = -1;
-    p->recv_thread = -1;
+    p->recv_state = 0;
 
     struct sockaddr_in addr_in = {0};
     addr_in.sin_family = family;
@@ -704,12 +728,10 @@ int k_recv(const long nd, size_t len, int flag)
         return KSOCK_ERR;
     }
 
-    struct recv_param *pa = (struct recv_param*)malloc(sizeof(struct recv_param));
-    pa->len = len;
-    pa->flag = flag;
-    pa->node = p;
-    void *buf = malloc(pa->len);
-    pa->buf = buf;
+    struct recv_param pa;
+    pa.len = len;
+    pa.flag = flag;
+    pa.node = p;
     if (epoll_fd == 0)
     {
         epoll_fd = epoll_create(MAX_EVENTS);
@@ -719,7 +741,7 @@ int k_recv(const long nd, size_t len, int flag)
             return KSOCK_ERR;
         }
     }
-    if (__event_add(pa) == KSOCK_ERR)
+    if (__event_add(&pa) == KSOCK_ERR)
         return KSOCK_ERR;
 
     if (-1 == recv_thread)
@@ -754,14 +776,12 @@ int k_recv_cancel(const long nd, int is_clear_recv)
     }
     struct ksock_connect_node *node = (struct ksock_connect_node *)nd;
 
-    if (-1 == node->recv_thread)
+    if (0 == node->recv_state)
     {
         _error_msg = "recv_thread not exist!";
         return KSOCK_ERR;
     }
-
-    pthread_cancel(node->recv_thread);
-    node->recv_thread = -1;
+    node->recv_state = 0;
     if (is_clear_recv)
     {
         struct ksock_msg p;
