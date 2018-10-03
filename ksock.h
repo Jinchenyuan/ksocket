@@ -69,6 +69,12 @@ struct ksock_init{
     short proto;
 };
 
+struct recv_param
+{
+    size_t  len;
+    int flag;
+};
+
 struct ksock_connect_node{
     int fd;
     int hd;
@@ -81,6 +87,7 @@ struct ksock_connect_node{
     struct ksock_msg *msg_tail;
     int recv_count;
     int recv_state;
+    struct recv_param pa;
     long nd;
 };
 
