@@ -25,6 +25,8 @@ int epoll_fd = 0;
 pthread_t accept_thread = -1;
 pthread_t recv_thread = -1;
 
+void __event_del(struct ksock_connect_node *p);
+int __event_add(struct ksock_connect_node *p);
 static inline int __check_hd(const int hd)
 {
     if (hd < 0 || hd >= HD_SIZE)
@@ -418,7 +420,7 @@ void * recv_func(void *arg)
             do
             {
                 memset(temp_buf, 0, p->pa.len);
-                ret = recv(p->fd, pa->buf, p->pa.len, p->pa.flag);
+                ret = recv(p->fd, temp_buf, p->pa.len, p->pa.flag);
                 if (ret > 0)
                 {
                     if (p->recv_count < RECV_QUEUE_MAX_NUM)
