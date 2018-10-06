@@ -82,6 +82,29 @@ int __k_add(const int fd, const struct ksock_init i)
     return KSOCK_ERR;
 }
 
+int __k_recv_pop(struct ksock_connect_node *node, struct ksock_msg *msg)
+{
+    if (NULL == node->msg_head)
+    {
+        _error_msg = "no msg!";
+        return KSOCK_ERR;
+    }
+    memcpy(msg->buf, node->msg_head->buf, node->msg_head->len);
+    msg->len = node->msg_head->len;
+    msg->next = NULL;
+    struct ksock_msg *temp = node->msg_head;
+    node->msg_head = node->msg_head->next;
+    node->recv_count -= 1;
+    free(temp->buf);
+    free(temp);
+    temp = NULL;
+    if (NULL == node->msg_head)
+    {
+        node->msg_tail = NULL;
+    }
+    return KSOCK_SUC;
+}
+
 int __k_remove(const int hd)
 {
     if (KSOCK_ERR == __check_hd(hd))
@@ -269,29 +292,6 @@ int __k_recv_push(struct ksock_connect_node *node, struct ksock_msg *msg)
     return KSOCK_SUC;
 }
 
-int __k_recv_pop(struct ksock_connect_node *node, struct ksock_msg *msg)
-{
-    if (NULL == node->msg_head)
-    {
-        _error_msg = "no msg!";
-        return KSOCK_ERR;
-    }
-    memcpy(msg->buf, node->msg_head->buf, node->msg_head->len);
-    msg->len = node->msg_head->len;
-    msg->next = NULL;
-    struct ksock_msg *temp = node->msg_head;
-    node->msg_head = node->msg_head->next;
-    node->recv_count -= 1;
-    free(temp->buf);
-    free(temp);
-    temp = NULL;
-    if (NULL == node->msg_head)
-    {
-        node->msg_tail = NULL;
-    }
-    return KSOCK_SUC;
-}
-
 void * accept_func(void *arg)
 {
     int max_fd = 0, ret = -1;
@@ -375,7 +375,7 @@ void * accept_func(void *arg)
     }
 }
 
-int __event_add(struct connect_node *p)
+int __event_add(struct ksock_connect_node *p)
 {
     struct epoll_event epv;
     epv.data.ptr = p;
@@ -389,7 +389,7 @@ int __event_add(struct connect_node *p)
     return KSOCK_SUC;
 }
 
-void __event_del(struct connect_node *p)
+void __event_del(struct ksock_connect_node *p)
 {
     struct epoll_event epv;
     epv.data.ptr = p;
@@ -411,7 +411,7 @@ void * recv_func(void *arg)
     for(int i = 0; i < fds; i++)
     {
         int ret = 0;
-        struct connect_node *p = (struct recv_param *)events[i].data.ptr;
+        struct ksock_connect_node *p = (struct recv_param *)events[i].data.ptr;
         if (events[i].events&(EPOLLIN | EPOLLET))
         { 
             void *temp_buf = malloc(p->pa.len);
@@ -421,7 +421,7 @@ void * recv_func(void *arg)
                 ret = recv(p->fd, pa->buf, p->pa.len, p->pa.flag);
                 if (ret > 0)
                 {
-                    if (pa->node->recv_count < RECV_QUEUE_MAX_NUM)
+                    if (p->recv_count < RECV_QUEUE_MAX_NUM)
                     {
                         struct ksock_msg *p = (struct ksock_msg *)malloc(sizeof(struct ksock_msg));
                         p->next = NULL;
@@ -433,8 +433,8 @@ void * recv_func(void *arg)
                     }
                     else
                     {
-                        printf("warnning fd: %d, recv queue overflow!", pa->node->fd);
-                        pa->node->state = KSOCK_RECV_OVERFLOW;
+                        printf("warnning fd: %d, recv queue overflow!", p->fd);
+                        p->state = KSOCK_RECV_OVERFLOW;
                     }
                 }
             } while (ret > 0);
@@ -691,7 +691,7 @@ int k_recv(const long nd, size_t len, int flag)
     }
 
     p->pa.len = len;
-    p->flag = flag;
+    p->pa.flag = flag;
     if (epoll_fd == 0)
     {
         epoll_fd = epoll_create(MAX_EVENTS);
