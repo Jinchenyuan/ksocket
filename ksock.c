@@ -413,7 +413,7 @@ void * recv_func(void *arg)
     for(int i = 0; i < fds; i++)
     {
         int ret = 0;
-        struct ksock_connect_node *p = (struct recv_param *)events[i].data.ptr;
+        struct ksock_connect_node *p = (struct ksock_connect_node *)events[i].data.ptr;
         if (events[i].events&(EPOLLIN | EPOLLET))
         { 
             void *temp_buf = malloc(p->pa.len);
@@ -425,13 +425,13 @@ void * recv_func(void *arg)
                 {
                     if (p->recv_count < RECV_QUEUE_MAX_NUM)
                     {
-                        struct ksock_msg *p = (struct ksock_msg *)malloc(sizeof(struct ksock_msg));
-                        p->next = NULL;
+                        struct ksock_msg *msg = (struct ksock_msg *)malloc(sizeof(struct ksock_msg));
+                        msg->next = NULL;
                         void *buf = malloc(ret);
                         memcpy(buf, temp_buf, ret);
-                        p->buf = buf;
-                        p->len = ret;
-                        __k_recv_push(pa->node, p);
+                        msg->buf = buf;
+                        msg->len = ret;
+                        __k_recv_push(p, msg);
                     }
                     else
                     {
