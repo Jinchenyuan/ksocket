@@ -1,3 +1,9 @@
+/**
+ * author jinchenyuan 2018-08-14
+ * email: jinchenyuan@outlook.com
+ * 有任何问题或建议，可以联系以上邮箱
+*/
+
 
 #ifndef __KSOCK_H_
 #define __KSOCK_H_
@@ -49,6 +55,7 @@ enum ksock_state
     KSOCK_STATE_ACTIVE,
     KSOCK_ACCEPT_OVERFLOW,
     KSOCK_RECV_OVERFLOW,
+    KSOCK_CLOSED,
 };
 
 struct ksock_msg{
@@ -62,17 +69,26 @@ struct ksock_init{
     short proto;
 };
 
+struct recv_param
+{
+    size_t  len;
+    int flag;
+};
+
 struct ksock_connect_node{
     int fd;
     int hd;
     short state;
     struct sockaddr_in addr_in;
     struct ksock_connect_node *next;
+    struct ksock_connect_node *last;
 
     struct ksock_msg *msg_head;
     struct ksock_msg *msg_tail;
     int recv_count;
-    pthread_t recv_thread;
+    int recv_state;
+    struct recv_param pa;
+    long nd;
 };
 
 struct ksock_node
@@ -83,8 +99,10 @@ struct ksock_node
     uint16_t port;
     struct ksock_connect_node *accept_head;
     struct ksock_connect_node *accept_tail;
+    //已经接收到并且放入accept队列中的node数量
     int accept_count;
-    pthread_t accept_thread;
+    //是否开启接收连接的状态
+    int accept_state;
     struct ksock_init init;
 
     struct ksock_connect_node *connect_node;
@@ -142,56 +160,64 @@ int k_accept(const int hd);
 int k_accept_cancel(const int hd, int is_clear_accept);
 
 /**
- * 获取accept node   注意：一旦accept node 被取走，拿到的一方必须为后续对该node做的做的操作负责
+ * 获取accept node   注意：服务端请调用该函数，一旦accept node 被取走，拿到的一方必须为后续对该node做的做的操作负责
  * @param hd        socket标志
- * @param node      用于接收结果的参数
+ * @param nd        用于接收结果的参数，此参数是一个句柄，是之后操作连接的唯一标志
  * @return          成功时返回KSOCK_SUC；错误时则返回KSOCK_ERR，错误信息将被设置     
 */
-int k_get_accept_node(const int hd, struct ksock_connect_node *node);
+int k_get_accept_node(const int hd, long *nd);
 
 /**
- * 获取connect node
- * @param hd        socket标志
- * @param node      用于接收结果的参数
+ * 移除accept node  注意：客户端请勿调用该函数
+ * @param nd        accept node句柄
  * @return          成功时返回KSOCK_SUC；错误时则返回KSOCK_ERR，错误信息将被设置          
 */
-int k_get_connect_node(const int hd, struct ksock_connect_node *node);
+int k_remove_connect_node(const long nd);
+
+/**
+ * 获取connect node  客户端请调用该函数
+ * @param hd        socket标志
+ * @param nd        用于接收结果的参数，此参数是一个句柄，是之后操作连接的唯一标志
+ * @return          成功时返回KSOCK_SUC；错误时则返回KSOCK_ERR，错误信息将被设置          
+*/
+int k_get_connect_node(const int hd, long *nd);
 
 /**
  * send 与socket send一致，可参阅
- * @param node      已连接的node
+ * @param nd        已经连接的nd
  * @param buf       发送的缓存
  * @param len       发送的长度
  * @param flag      socket send flag
  * @return          实际发送的长度
 */
-int k_send(const struct ksock_connect_node node, void *buf, size_t len, int flag);
+int k_send(const long nd, void *buf, size_t len, int flag);
 
 /**
- * recv 与socket recv一致，可参阅 ？要不要保留recv的阻塞性 ？目前倾向于保留，把处理消息的主动性留给调用者
- * @param node      已连接的node
+ * recv 注意：本函数采用epoll ET模式，消息将不再阻塞，如果消息队列已满，消息将会丢失，
+ *          并且有相应日志打印，如果产生消息丢失，请关注。
+ * @param nd        已连接的nd
  * @param buf       recv的缓存
  * @param len       recv的缓存区最大值
  * @param flag      socket recv flag
  * @return          实际接收的长度
 */
-int k_recv(struct ksock_connect_node *node, size_t len, int flag);
+int k_recv(const long nd, size_t len, int flag);
 
 /**
  * 获取消息
- * @param node              已连接的node
+ * @param nd                已连接的nd
  * @param msg               接收消息
  * @return                  成功时返回KSOCK_SUC；错误时则返回KSOCK_ERR，错误信息将被设置 
 */
-int k_get_recv_msg(struct ksock_connect_node *node, struct ksock_msg *msg);
+int k_get_recv_msg(const long nd, struct ksock_msg *msg);
 
 /**
  * 取消recv
- * @param node              已连接的node
+ * @param nd                已连接的nd
  * @param is_clear_recv     是否丢弃已经接收到队里的消息
  * @return                  成功时返回KSOCK_SUC；错误时则返回KSOCK_ERR，错误信息将被设置 
 */
-int k_recv_cancel(struct ksock_connect_node *node, int is_clear_recv);
+int k_recv_cancel(const long nd, int is_clear_recv);
 
 /**
  * socket close    注意，一旦关闭，该hd将废弃。

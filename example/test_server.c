@@ -46,18 +46,22 @@ int main(int argc, char const *argv[])
         return -1;
     }
 
-    struct ksock_connect_node node;
-    node.fd = -1;
-
+    // struct ksock_connect_node node;
+    // node.fd = -1;
+    long nd;
     ret = -1;
     while(ret == -1)
     {
-        ret = k_get_accept_node(hd, &node);
+        printf("1111111111\n");
+        ret = k_get_accept_node(hd, &nd);
+        printf("nd:%ld\n", nd);
+        printf("2222222222\n");
+        printf("ret = %d\n", ret);
         if (ret == KSOCK_SUC)
         {   
             printf("get accept!!!!!!\n");
             //收到连接，可以做想做的事情了
-            ret = k_recv(&node, 100, 0);
+            ret = k_recv(nd, 100, 0);
             if (ret == KSOCK_SUC)
             {
                 printf("recv success.\n");
@@ -65,22 +69,37 @@ int main(int argc, char const *argv[])
         }
         sleep(1);
     }
-
+    // printf("qqqqqqqqqqqq\n");
     //接下来，可以去获取消息
     while(1)
     {
         struct ksock_msg msg;
-        node.msg_head->buf;
-        char buf[100];
-        msg.buf = buf;
-        ret = k_get_recv_msg(&node, &msg);
+        char buf[1024];
+        msg.buf = (void *)buf;
+        ret = k_get_recv_msg(nd, &msg);
         if (ret == KSOCK_SUC)
         {
             printf("msg: [%s]\n", (char *)msg.buf);
         }
         else
         {
-            // k_perror("k_get_recv_msg");
+            k_perror("k_get_recv_msg");
+           
+            ret = k_get_accept_node(hd, &nd);
+            // printf("nd:%ld\n", nd);
+            // printf("2222222222\n");
+            // printf("ret = %d\n", ret);
+            if (ret == KSOCK_SUC)
+            {   
+                printf("get accept!!!!!!\n");
+                //收到连接，可以做想做的事情了
+                ret = k_recv(nd, 100, 0);
+                if (ret == KSOCK_SUC)
+                {
+                    printf("recv success.\n");
+                }
+            }
+           
         }
         sleep(1);
     }
