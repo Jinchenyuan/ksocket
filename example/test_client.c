@@ -41,10 +41,8 @@ int main(int argc, char const *argv[])
     printf("connect success %d\n", ret);
 
     long nd = -1;
-    printf("1111111111\n");
     ret = k_get_connect_node(hd, &nd);
     printf("nd:%ld\n", nd);
-    printf("2222222222\n");
     if (ret == KSOCK_ERR)
     {
         k_perror("k_get_connect_node");

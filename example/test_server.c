@@ -52,14 +52,9 @@ int main(int argc, char const *argv[])
     ret = -1;
     while(ret == -1)
     {
-        printf("1111111111\n");
         ret = k_get_accept_node(hd, &nd);
-        printf("nd:%ld\n", nd);
-        printf("2222222222\n");
-        printf("ret = %d\n", ret);
         if (ret == KSOCK_SUC)
         {   
-            printf("get accept!!!!!!\n");
             //收到连接，可以做想做的事情了
             ret = k_recv(nd, 100, 0);
             if (ret == KSOCK_SUC)
@@ -86,12 +81,8 @@ int main(int argc, char const *argv[])
             k_perror("k_get_recv_msg");
            
             ret = k_get_accept_node(hd, &nd);
-            // printf("nd:%ld\n", nd);
-            // printf("2222222222\n");
-            // printf("ret = %d\n", ret);
             if (ret == KSOCK_SUC)
             {   
-                printf("get accept!!!!!!\n");
                 //收到连接，可以做想做的事情了
                 ret = k_recv(nd, 100, 0);
                 if (ret == KSOCK_SUC)
